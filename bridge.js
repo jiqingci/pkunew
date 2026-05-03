@@ -10,6 +10,18 @@ const http = require('http');
 const net = require('net');
 const { WebSocketServer } = require('ws');
 const iconv = require('iconv-lite');
+const { StringDecoder } = require('string_decoder');
+
+// 编解码工厂：UTF-8 走 Node 原生 StringDecoder（处理半字符接续），其它走 iconv-lite。
+function makeCodec(charset) {
+  const name = String(charset || 'utf8').toLowerCase().replace(/-/g, '');
+  if (name === 'utf8') {
+    const dec = new StringDecoder('utf8');
+    return { name: 'utf8', decode: (b) => dec.write(b), encode: (t) => Buffer.from(t, 'utf8') };
+  }
+  const dec = iconv.getDecoder(name);
+  return { name, decode: (b) => dec.write(b), encode: (t) => iconv.encode(t, name) };
+}
 
 // Telnet 协议常量
 const IAC  = 0xFF, DONT = 0xFE, DO = 0xFD, WONT = 0xFC, WILL = 0xFB;
@@ -108,12 +120,14 @@ function makeTelnetStripper(replyBack, onMxpEnabled, onTelnetEvent, onSubneg) {
 }
 
 // 启动一个桥接服务，返回 Promise<http.Server>。
-// opts: { host='0.0.0.0', port=8765, mudHost='mud.pkuxkx.net', mudPort=8080, log? }
+// opts: { host, port, mudHost, mudPort, charset='utf8', log? }
+// 客户端可在 ws URL 加 ?charset=gbk 覆盖默认值
 function startBridge(opts = {}) {
   const HOST     = opts.host     || '0.0.0.0';
   const PORT     = opts.port     != null ? opts.port : 8765;
   const MUD_HOST = opts.mudHost  || 'mud.pkuxkx.net';
   const MUD_PORT = opts.mudPort  || 8080;
+  const DEFAULT_CHARSET = (opts.charset || 'utf8').toLowerCase();
   const log      = opts.log || (() => {});
 
   const server = http.createServer((req, res) => {
@@ -124,7 +138,17 @@ function startBridge(opts = {}) {
 
   wss.on('connection', (ws, req) => {
     const peer = (req.socket && req.socket.remoteAddress) || '?';
-    log(`浏览器接入 ${peer}，代连 ${MUD_HOST}:${MUD_PORT}`);
+    // 解析 ws URL 查询参数：?charset=utf8|gbk|big5
+    let charset = DEFAULT_CHARSET;
+    try {
+      const u = new URL(req.url, 'http://x');
+      const c = u.searchParams.get('charset');
+      if (c) charset = c.toLowerCase();
+    } catch (_) {}
+    let codec;
+    try { codec = makeCodec(charset); }
+    catch (e) { codec = makeCodec('utf8'); charset = 'utf8'; }
+    log(`浏览器接入 ${peer}，编码 ${codec.name}，代连 ${MUD_HOST}:${MUD_PORT}`);
 
     // 通过二进制 ws 消息把元数据（IAC 协商、连接状态、错误）推给浏览器，
     // 与文本数据通道分离，便于客户端记录到「传输日记」。
@@ -133,8 +157,9 @@ function startBridge(opts = {}) {
       try { ws.send(Buffer.from(JSON.stringify(obj), 'utf8'), { binary: true }); } catch (_) {}
     };
 
+    sendMeta({ type: 'event', kind: 'tcp', desc: '编码 ' + codec.name, ts: Date.now() });
+
     const tcp = net.createConnection({ host: MUD_HOST, port: MUD_PORT });
-    const decoder = iconv.getDecoder('gbk');
     // PKUXKX 通过 TTYPE 识别客户端：报告 "Mudlet" 让服务器认为我们是支持 MXP 的客户端
     // RFC 1091 的 TTYPE cycle：服务器多次 SEND，客户端依次回 IS "Mudlet" / "ANSI-256COLOR" / "MTTS 13"
     const TTYPE_LIST = ['Mudlet', 'ANSI-256COLOR', 'MTTS 13'];
@@ -177,7 +202,7 @@ function startBridge(opts = {}) {
     tcp.on('data', (data) => {
       const clean = stripper(data);
       if (clean.length === 0) return;
-      const text = decoder.write(clean);
+      const text = codec.decode(clean);
       if (text && ws.readyState === ws.OPEN) ws.send(text);
     });
     tcp.on('close', () => {
@@ -197,7 +222,7 @@ function startBridge(opts = {}) {
 
     ws.on('message', (msg, isBinary) => {
       const text = isBinary ? msg.toString('utf8') : msg.toString();
-      const buf = iconv.encode(text, 'gbk');
+      const buf = codec.encode(text);
       if (!tcp.destroyed) tcp.write(buf);
     });
     ws.on('close', () => {

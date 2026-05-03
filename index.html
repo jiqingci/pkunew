@@ -491,8 +491,14 @@
     <h2>桥 接 设 置</h2>
     <label>WebSocket 地址</label>
     <input id="server" type="text" value="ws://localhost:8765" placeholder="ws://host:port">
+    <label>编码（PKUXKX 现代账号默认 UTF-8；老账号可能仍是 GBK）</label>
+    <select id="charset" style="width:100%;padding:6px 8px;border:none;border-bottom:1px solid #ccc;background:transparent;font-family:inherit;font-size:12pt;outline:none">
+      <option value="utf8">UTF-8（Mudlet 模式 / 推荐）</option>
+      <option value="gbk">GBK（传统 8080 GBK）</option>
+      <option value="big5">Big5</option>
+    </select>
     <label>命令字体</label>
-    <input id="font-pref" type="text" placeholder="留空使用默认楷体；可填 monospace">
+    <input id="font-pref" type="text" placeholder="留空使用默认；可填 monospace">
     <div class="modal-actions">
       <a id="settings-save">【存】</a>
       <a id="settings-close" class="muted">【闭】</a>
@@ -521,6 +527,7 @@
     const urlAuto = urlParams.get('autoconnect') === '1';
     $('server').value = urlWs || prefs.get('server', 'ws://localhost:8765');
     $('font-pref').value = prefs.get('font', '');
+    $('charset').value = prefs.get('charset', 'utf8');
     if (prefs.get('theme', 'light') === 'dark') document.body.classList.add('dark');
     applyFont(prefs.get('font', ''));
 
@@ -762,10 +769,14 @@
 
     // —— 连接 —— //
     function connect() {
-      const url = $('server').value.trim();
-      if (!url) { appendSystem('请先在【设】中填写 WebSocket 地址'); return; }
+      const baseUrl = $('server').value.trim();
+      if (!baseUrl) { appendSystem('请先在【设】中填写 WebSocket 地址'); return; }
       if (ws && ws.readyState <= 1) { appendSystem('已经连接，无需重复连接'); return; }
-      prefs.set('server', url);
+      prefs.set('server', baseUrl);
+      // 把 charset 作为查询参数加到 ws URL：?charset=utf8|gbk|big5
+      const charset = prefs.get('charset', 'utf8');
+      const sep = baseUrl.includes('?') ? '&' : '?';
+      const url = baseUrl + sep + 'charset=' + encodeURIComponent(charset);
       setStatus('connecting', '连接中…');
       appendSystem('正在连接 ' + url);
       pushLog({ dir: 'meta', kind: 'event', desc: '正在连接 ' + url });
@@ -940,8 +951,14 @@
       const f = $('font-pref').value.trim();
       prefs.set('font', f);
       applyFont(f);
+      const cs = $('charset').value;
+      const csChanged = prefs.get('charset', 'utf8') !== cs;
+      prefs.set('charset', cs);
       closeSettings();
       appendSystem('设置已保存');
+      if (csChanged && ws && ws.readyState <= 1) {
+        appendSystem('编码改为 ' + cs + '：请断开后重连生效');
+      }
     }
 
     // —— 事件绑定 —— //
