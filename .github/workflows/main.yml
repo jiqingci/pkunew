@@ -1,3 +1,0 @@
-git checkout main && git merge claude/beida-xiake-html-client-N5CN0
-git push
-git tag v1.0.0 && git push --tags
