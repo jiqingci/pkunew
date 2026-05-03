@@ -355,6 +355,63 @@
     .dark .mxp-link { color: #5ca7ff; }
     .mxp-high { font-weight: 700; }
 
+    /* 传输日记面板（大尺寸 modal） */
+    .modal.modal-large {
+      width: min(900px, 92vw);
+      max-height: 82vh;
+      padding: 18px 22px;
+    }
+    .modal.modal-large.open { display: flex; flex-direction: column; }
+    .log-actions {
+      padding: 4px 0 8px;
+      font-size: 10pt;
+      border-bottom: 1px solid #eee;
+    }
+    .dark .log-actions { border-bottom-color: #2a2a2a; }
+    .log-actions a {
+      color: #888;
+      cursor: pointer;
+      padding: 0 8px;
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .log-actions a:hover { color: #D50303; }
+    .dark .log-actions a:hover { color: #cc8f1a; }
+    #log-list {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      font-family: Consolas, "Cascadia Code", "Source Code Pro", monospace;
+      font-size: 11pt;
+      line-height: 1.45em;
+      background: rgba(0,0,0,0.025);
+      padding: 8px 10px;
+      border-radius: 3px;
+      margin: 8px 0 4px;
+      min-height: 360px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .dark #log-list { background: rgba(255,255,255,0.04); }
+    #log-list::-webkit-scrollbar { display: block; width: 8px; }
+    #log-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    .dark #log-list::-webkit-scrollbar-thumb { background: #444; }
+    .log-row {
+      padding: 1px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+    }
+    .dark .log-row { border-bottom-color: rgba(255,255,255,0.04); }
+    .log-row .ts { color: #aaa; margin-right: 6px; font-size: 9pt; }
+    .log-row .dir { font-weight: 700; margin-right: 4px; display: inline-block; min-width: 14px; }
+    .log-row.recv .dir { color: #2a7a2a; }
+    .log-row.send .dir { color: #D50303; }
+    .log-row.telnet { color: #2070d0; }
+    .log-row.event  { color: #888; font-style: italic; }
+    .dark .log-row.recv .dir { color: #4ee06b; }
+    .dark .log-row.send .dir { color: #ff8585; }
+    .dark .log-row.telnet     { color: #5ca7ff; }
+    .dark .log-row.event      { color: #777; }
+
     /* MXP 协商成功后顶栏的小指示 */
     #mxp-indicator {
       display: none;
@@ -398,12 +455,26 @@
       <a id="nav-inv"   data-cmd="i">【囊】</a>
       <a id="nav-who"   data-cmd="who">【众】</a>
       <a id="nav-clear">【清】</a>
+      <a id="nav-log">【志】</a>
       <a id="nav-theme">【夜】</a>
       <a id="nav-settings">【设】</a>
     </div>
   </div>
 
   <div class="modal-mask" id="modal-mask"></div>
+  <div class="modal modal-large" id="modal-log">
+    <h2>传 输 日 记</h2>
+    <div class="log-actions">
+      <a id="log-clear">清空</a>
+      <a id="log-copy">复制全部</a>
+      <a id="log-export">导出文件</a>
+      <span id="log-stats" style="float:right;color:#999;font-size:9pt"></span>
+    </div>
+    <div id="log-list"></div>
+    <div class="modal-actions">
+      <a id="log-close" class="muted">【闭】</a>
+    </div>
+  </div>
   <div class="modal" id="modal-settings">
     <h2>桥 接 设 置</h2>
     <label>WebSocket 地址</label>
@@ -685,25 +756,51 @@
       prefs.set('server', url);
       setStatus('connecting', '连接中…');
       appendSystem('正在连接 ' + url);
+      pushLog({ dir: 'meta', kind: 'event', desc: '正在连接 ' + url });
       try { ws = new WebSocket(url); }
       catch (e) { setStatus('disconnected', '未连接'); appendSystem('连接失败：' + e.message); return; }
       ws.binaryType = 'arraybuffer';
-      ws.onopen = () => { setStatus('connected', '已连接'); appendSystem('连接成功'); inp.focus(); };
-      ws.onmessage = ev => {
-        let data = ev.data;
-        if (data instanceof ArrayBuffer) data = new TextDecoder('utf-8').decode(new Uint8Array(data));
-        renderChunk(data);
+      ws.onopen = () => {
+        setStatus('connected', '已连接');
+        appendSystem('连接成功');
+        pushLog({ dir: 'meta', kind: 'event', desc: 'WebSocket 已连接' });
+        inp.focus();
       };
-      ws.onerror = () => appendSystem('WebSocket 出现错误（地址不可达或桥接未启动？）');
+      ws.onmessage = ev => {
+        // 二进制 ws 消息 = 桥接发的元数据 (JSON)；文本 ws 消息 = MUD 数据
+        if (ev.data instanceof ArrayBuffer) {
+          let metaText = '';
+          try { metaText = new TextDecoder('utf-8').decode(new Uint8Array(ev.data)); } catch (_) {}
+          // 元数据 JSON：尝试解析；解析失败回落当作文本数据
+          try {
+            const meta = JSON.parse(metaText);
+            handleMeta(meta);
+            return;
+          } catch (_) { /* 非 JSON，按文本处理 */ }
+          pushLog({ dir: 'recv', kind: 'data', text: metaText });
+          renderChunk(metaText);
+          return;
+        }
+        const text = String(ev.data);
+        pushLog({ dir: 'recv', kind: 'data', text });
+        renderChunk(text);
+      };
+      ws.onerror = () => {
+        appendSystem('WebSocket 出现错误（地址不可达或桥接未启动？）');
+        pushLog({ dir: 'meta', kind: 'error', desc: 'WebSocket 错误' });
+      };
       ws.onclose = ev => {
         setStatus('disconnected', '已断开');
         appendSystem('连接已关闭' + (ev && ev.code ? `（code=${ev.code}）` : ''));
+        pushLog({ dir: 'meta', kind: 'event', desc: 'WebSocket 已关闭 code=' + (ev && ev.code) });
       };
     }
     function disconnect() { if (ws) { ws.close(); ws = null; } }
     function send(line) {
       if (!ws || ws.readyState !== 1) { appendSystem('尚未连接到服务器'); return; }
-      ws.send(line + '\n');
+      const out = line + '\n';
+      ws.send(out);
+      pushLog({ dir: 'send', kind: 'data', text: out });
     }
     function submit() {
       const raw = inp.value;
@@ -716,13 +813,105 @@
       pendingInput = '';
     }
 
+    // —— 传输日记 —— //
+    const MAX_LOG = 2000;
+    const logStore = [];
+    const logPanel = $('modal-log');
+    function pushLog(entry) {
+      entry.ts = entry.ts || Date.now();
+      logStore.push(entry);
+      if (logStore.length > MAX_LOG) logStore.splice(0, logStore.length - MAX_LOG);
+      if (logPanel.classList.contains('open')) renderLogIncremental(entry);
+      updateLogStats();
+    }
+    // 桥接发来的元数据：{type:'telnet'|'event', dir, kind, desc, ts}
+    function handleMeta(meta) {
+      if (!meta || !meta.type) return;
+      if (meta.type === 'event' && meta.kind === 'mxp') {
+        // 桥接通报 MXP 协商成功
+        mxp.enabled = true;
+        $('mxp-indicator').classList.add('on');
+      }
+      pushLog({
+        ts: meta.ts || Date.now(),
+        dir: meta.dir || 'meta',
+        kind: meta.type === 'telnet' ? 'telnet' : 'event',
+        desc: meta.desc || ''
+      });
+    }
+    // 不可见字符可视化：方便用户看到 ESC、回车、IAC
+    function visualize(s) {
+      return String(s)
+        .replace(/\x1b/g, '␛')
+        .replace(/\xff/g, '⁅FF⁆')
+        .replace(/\r/g, '␍')
+        .replace(/\t/g, '␉')
+        .replace(/\x00/g, '␀');
+    }
+    function renderLogRow(entry) {
+      const d = new Date(entry.ts);
+      const ts = String(d.getHours()).padStart(2,'0') + ':' +
+                 String(d.getMinutes()).padStart(2,'0') + ':' +
+                 String(d.getSeconds()).padStart(2,'0') + '.' +
+                 String(d.getMilliseconds()).padStart(3,'0');
+      const dirSym = entry.dir === 'send' ? '→' : entry.dir === 'recv' ? '←' : '⚙';
+      let body;
+      if (entry.kind === 'data') {
+        body = escapeHtml(visualize(entry.text || ''));
+      } else {
+        body = escapeHtml(entry.desc || '');
+      }
+      return `<div class="log-row ${entry.kind} ${entry.dir}"><span class="ts">${ts}</span><span class="dir">${dirSym}</span>${body}</div>`;
+    }
+    function renderLogIncremental(entry) {
+      const list = $('log-list');
+      const wasAtBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 30;
+      list.insertAdjacentHTML('beforeend', renderLogRow(entry));
+      if (wasAtBottom) list.scrollTop = list.scrollHeight;
+    }
+    function renderLogFull() {
+      $('log-list').innerHTML = logStore.map(renderLogRow).join('');
+      $('log-list').scrollTop = $('log-list').scrollHeight;
+    }
+    function updateLogStats() {
+      const stats = $('log-stats');
+      if (!stats) return;
+      const recv = logStore.filter(e => e.dir === 'recv').length;
+      const send = logStore.filter(e => e.dir === 'send').length;
+      const tel  = logStore.filter(e => e.kind === 'telnet').length;
+      stats.textContent = `共 ${logStore.length} 条 · 收 ${recv} · 发 ${send} · IAC ${tel}`;
+    }
+    function openLog() {
+      logPanel.classList.add('open');
+      mask.classList.add('open');
+      renderLogFull();
+      updateLogStats();
+    }
+    function closeLog() {
+      logPanel.classList.remove('open');
+      // 仅在没有其它 modal 打开时收起遮罩
+      if (!modal.classList.contains('open')) mask.classList.remove('open');
+    }
+    function exportLogText() {
+      return logStore.map(e => {
+        const d = new Date(e.ts);
+        const ts = d.toISOString();
+        const dir = e.dir === 'send' ? '→' : e.dir === 'recv' ? '←' : '⚙';
+        const body = e.kind === 'data' ? JSON.stringify(e.text) : (e.desc || '');
+        return `${ts} ${dir} [${e.kind || ''}] ${body}`;
+      }).join('\n');
+    }
+
     // —— 主题与设置 —— //
     function toggleTheme() {
       document.body.classList.toggle('dark');
       prefs.set('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     }
     function openSettings() { modal.classList.add('open'); mask.classList.add('open'); $('server').focus(); }
-    function closeSettings() { modal.classList.remove('open'); mask.classList.remove('open'); }
+    function closeSettings() {
+      modal.classList.remove('open');
+      if (!logPanel.classList.contains('open')) mask.classList.remove('open');
+    }
     function saveSettings() {
       prefs.set('server', $('server').value.trim());
       const f = $('font-pref').value.trim();
@@ -738,12 +927,36 @@
     $('nav-clear').addEventListener('click', () => { story.innerHTML = ''; });
     $('nav-theme').addEventListener('click', toggleTheme);
     $('nav-settings').addEventListener('click', openSettings);
+    $('nav-log').addEventListener('click', openLog);
     $('ctrl-clear').addEventListener('click', () => { story.innerHTML = ''; });
     $('ctrl-theme').addEventListener('click', toggleTheme);
     $('ctrl-settings').addEventListener('click', openSettings);
     $('settings-save').addEventListener('click', saveSettings);
     $('settings-close').addEventListener('click', closeSettings);
-    mask.addEventListener('click', closeSettings);
+    $('log-close').addEventListener('click', closeLog);
+    $('log-clear').addEventListener('click', () => { logStore.length = 0; renderLogFull(); updateLogStats(); });
+    $('log-copy').addEventListener('click', () => {
+      const txt = exportLogText();
+      const done = () => appendSystem('日记已复制到剪贴板（' + logStore.length + ' 条）');
+      if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => fallbackCopy(txt, done));
+      else fallbackCopy(txt, done);
+    });
+    $('log-export').addEventListener('click', () => {
+      const txt = exportLogText();
+      const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'pkuxkx-log-' + new Date().toISOString().replace(/[:.]/g,'-').slice(0,-5) + '.txt';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+    function fallbackCopy(txt, done) {
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done && done(); } finally { document.body.removeChild(ta); }
+    }
+    mask.addEventListener('click', () => { closeSettings(); closeLog(); });
     statusText.addEventListener('click', () => {
       const s = statusText.dataset.state;
       if (s === 'connected') disconnect(); else connect();
@@ -787,6 +1000,7 @@
         inp.value = historyIdx === history.length ? pendingInput : history[historyIdx];
       } else if (e.key === 'Escape') {
         if (modal.classList.contains('open')) closeSettings();
+        if (logPanel.classList.contains('open')) closeLog();
       }
     });
 
