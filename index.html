@@ -2,177 +2,441 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>北大侠客行 Web 客户端</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>侠客行</title>
+  <link href="https://fonts.googleapis.com/css?family=Noto+Sans+SC:300,700&display=swap&subset=chinese-simplified" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; }
-    html, body {
+    /* —— 参考 Ancientwood/xkx (ancientwood.github.io/xkx) 的 UI 语言 ——
+       楷体古风 / 白底黑字 / 可切夜色金链 / 居中窄列 / 顶底固定栏 / 隐藏滚动条 */
+
+    ::-webkit-scrollbar { display: none; }
+
+    html, body { height: 100%; }
+    body {
+      font-family: Kaiti, "Noto Sans SC", "STKaiti", "PingFang SC", sans-serif;
+      font-weight: lighter;
+      background: #FFFFFF;
+      margin: 0;
+      overflow: hidden;
+      transition: background 0.6s, color 0.6s;
+    }
+    body.dark { background: #000; color: #FFFFFF; }
+
+    /* 顶部固定标题（致敬 xkx 的 h3.written-in-ink） */
+    .topbar {
+      font-size: 9pt;
+      font-family: Kaiti, "Noto Sans SC";
+      text-align: center;
+      font-weight: 700;
+      position: fixed;
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 6px 0;
+      top: 0;
+      left: 0;
+      background: #FFFFFF;
+      z-index: 5;
+      transition: background 0.6s;
+    }
+    .topbar a { color: #D50303; text-decoration: none; }
+    .dark .topbar { background: #000; }
+    .dark .topbar a { color: #cc8f1a; }
+    .topbar .sep { color: #ccc; padding: 0 6px; }
+    .dark .topbar .sep { color: #444; }
+
+    /* 右上角操作（致敬 xkx 的 #controls，竖线分隔） */
+    #controls {
+      z-index: 6;
+      font-size: 9pt;
+      text-align: center;
+      padding-bottom: 6px;
+      position: fixed;
+      right: 14px;
+      top: 4px;
+      user-select: none;
+      background: #FFFFFF;
+      transition: color 0.6s, background 0.6s;
+    }
+    #controls a {
+      color: #D50303;
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 700;
+      font-family: Kaiti, "Noto Sans SC";
+    }
+    #controls a:hover { color: #FC0505; transition: color 0.6s; }
+    #controls > *:not(:last-child):after { content: " | "; color: #ccc; }
+    .dark #controls { background: #000; }
+    .dark #controls a { color: #cc8f1a; }
+    .dark #controls a:hover { color: #FFFFFF; }
+    .dark #controls > *:not(:last-child):after { color: #444; }
+
+    @media screen and (max-width: 980px) {
+      #controls { z-index: 2; padding-top: 24px; top: 0; left: 0; right: 0; background: transparent; }
+      .dark #controls { background: transparent; }
+    }
+
+    /* 主滚动外壳 */
+    .outerContainer {
+      position: absolute;
+      display: block;
       margin: 0;
       padding: 0;
+      -webkit-overflow-scrolling: touch;
+      overflow-y: scroll;
+      overflow-x: hidden;
       height: 100%;
-      background: #0e0e0e;
-      color: #d4d4d4;
-      font-family: Consolas, "Microsoft YaHei", "微软雅黑", "PingFang SC", monospace;
+      width: 100%;
+      top: 0;
+      left: 0;
     }
-    body {
-      display: flex;
-      flex-direction: column;
+
+    /* 居中窄列（致敬 xkx .container max-width 600px） */
+    .container {
+      display: block;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 4em 20px 9em;
+      background: #FFFFFF;
+      transition: background 0.6s;
     }
-    #toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 8px;
-      background: #1f1f1f;
-      border-bottom: 1px solid #333;
-      align-items: center;
-    }
-    #toolbar input, #toolbar button, #toolbar select {
-      padding: 5px 10px;
-      background: #0e0e0e;
-      color: #d4d4d4;
-      border: 1px solid #555;
-      border-radius: 3px;
-      font-family: inherit;
-      font-size: 13px;
-    }
-    #toolbar input { min-width: 240px; }
-    #toolbar button { cursor: pointer; user-select: none; }
-    #toolbar button:hover { background: #2d2d2d; border-color: #888; }
-    #status {
-      padding: 4px 10px;
-      border-radius: 10px;
-      font-size: 12px;
-      margin-left: auto;
-    }
-    #status.connected    { background: #1d4d1d; color: #b6f5b6; }
-    #status.disconnected { background: #4d1d1d; color: #f5b6b6; }
-    #status.connecting   { background: #4d471d; color: #f5edb6; }
-    #output {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px 12px;
-      font-size: 14px;
-      line-height: 1.45;
+    .dark .container { background: #000; }
+
+    /* MUD 输出区（保留 ANSI 颜色，但用 13pt 楷体大行距，呼应 xkx 的段落样式） */
+    #story {
+      font-size: 13pt;
+      color: #151515;
+      line-height: 1.7em;
+      font-weight: lighter;
       white-space: pre-wrap;
-      word-break: break-all;
+      word-break: break-word;
+      transition: color 0.6s;
     }
-    #output::-webkit-scrollbar { width: 10px; }
-    #output::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
-    #output::-webkit-scrollbar-track { background: #1a1a1a; }
-    #input-area {
+    .dark #story { color: #d4d4d4; }
+
+    #story .echo {
+      display: block;
+      color: #D50303;
+      font-weight: 700;
+      padding-top: 0.4em;
+    }
+    .dark #story .echo { color: #cc8f1a; }
+    #story .echo::before { content: "▸ "; }
+
+    #story .system {
+      display: block;
+      color: #999;
+      font-style: italic;
+      text-align: center;
+      padding: 0.3em 0;
+      font-size: 11pt;
+    }
+    .dark #story .system { color: #777; }
+
+    /* 底部固定区（致敬 xkx .foot：白米纸色 / 夜色深底） */
+    .foot {
+      width: 100%;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      background: #FFFEFA;
+      border-top: 1px solid #eee;
+      padding: 8px 14px 6px;
+      z-index: 5;
+      transition: background 0.6s, border-color 0.6s;
+    }
+    .dark .foot { background: #0a0a0a; border-top-color: #1c1c1c; }
+
+    .input-row {
       display: flex;
-      gap: 6px;
-      padding: 8px;
-      background: #1f1f1f;
-      border-top: 1px solid #333;
+      align-items: center;
+      gap: 8px;
+      max-width: 720px;
+      margin: 0 auto;
     }
+    .prompt-mark {
+      color: #D50303;
+      font-weight: 700;
+      font-family: Kaiti, "Noto Sans SC";
+      font-size: 14pt;
+      user-select: none;
+    }
+    .dark .prompt-mark { color: #cc8f1a; }
+
     #input {
       flex: 1;
-      padding: 8px 10px;
-      background: #0e0e0e;
-      color: #d4d4d4;
-      border: 1px solid #555;
-      border-radius: 3px;
-      font-family: inherit;
-      font-size: 14px;
+      border: none;
       outline: none;
+      background: transparent;
+      color: #151515;
+      font-family: Kaiti, "Noto Sans SC", sans-serif;
+      font-size: 13pt;
+      padding: 4px 0;
+      transition: color 0.6s;
     }
-    #input:focus { border-color: #7aa2ff; }
-    #send-btn {
-      padding: 0 18px;
-      background: #2a4a7a;
-      color: #fff;
-      border: 1px solid #3b6ab0;
-      border-radius: 3px;
+    .dark #input { color: #FFFFFF; }
+    #input::placeholder { color: #bbb; font-style: italic; }
+    .dark #input::placeholder { color: #555; }
+
+    /* 底部动作链接条（致敬 xkx 底部 【侠】【驿】【舆】 风格） */
+    .nav-row {
+      text-align: center;
+      font-family: Kaiti, "Noto Sans SC";
+      font-size: 11pt;
+      line-height: 1.6em;
+      color: #515C6B;
+      padding-top: 4px;
+    }
+    .nav-row a {
+      color: #515C6B;
+      text-decoration: none;
+      font-weight: 700;
       cursor: pointer;
-      font-family: inherit;
-      font-size: 14px;
+      padding: 0 1px;
+      transition: color 0.6s;
     }
-    #send-btn:hover { background: #3b6ab0; }
-    .system { color: #888; font-style: italic; }
-    .echo   { color: #6b9bd1; }
-    .error  { color: #f55; }
+    .nav-row a:hover { color: #D50303; }
+    .nav-row a[disabled] { color: #ccc; pointer-events: none; }
+    .dark .nav-row, .dark .nav-row a { color: #888; }
+    .dark .nav-row a:hover { color: #cc8f1a; }
+    .dark .nav-row a[disabled] { color: #333; }
 
-    /* ANSI 前景色（普通） */
-    .fg30 { color: #2e2e2e; } .fg31 { color: #cd3131; }
-    .fg32 { color: #0dbc79; } .fg33 { color: #c3a000; }
-    .fg34 { color: #2472c8; } .fg35 { color: #bc3fbc; }
-    .fg36 { color: #11a8cd; } .fg37 { color: #cccccc; }
-    /* ANSI 前景色（高亮 / bold） */
-    .bfg30 { color: #666666; } .bfg31 { color: #ff6b6b; }
-    .bfg32 { color: #4ee06b; } .bfg33 { color: #f5e542; }
-    .bfg34 { color: #5ca7ff; } .bfg35 { color: #ff66ff; }
-    .bfg36 { color: #4ee0e0; } .bfg37 { color: #ffffff; }
-    /* ANSI 背景色 */
-    .bg40 { background: #000; }    .bg41 { background: #800000; }
-    .bg42 { background: #007a00; } .bg43 { background: #807a00; }
-    .bg44 { background: #00007a; } .bg45 { background: #7a007a; }
-    .bg46 { background: #007a7a; } .bg47 { background: #aaaaaa; }
+    /* 设置浮层（致敬 xkx 的浮窗 #map_lxsz 风格） */
+    .modal-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.18);
+      z-index: 9;
+    }
+    .modal-mask.open { display: block; }
+    .dark .modal-mask { background: rgba(0,0,0,0.55); }
 
-    .bold { font-weight: bold; }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #FFFEFA;
+      border: 1px solid #ddd;
+      padding: 22px 26px;
+      min-width: 320px;
+      z-index: 10;
+      font-family: Kaiti, "Noto Sans SC", sans-serif;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+    }
+    .modal.open { display: block; }
+    .dark .modal { background: #0e0e0e; border-color: #333; box-shadow: 0 6px 24px rgba(0,0,0,0.6); }
+    .modal h2 {
+      text-align: center;
+      font-family: Kaiti, "Noto Sans SC", Georgia, serif;
+      color: #010101;
+      margin: 0 0 12px;
+      font-size: 14pt;
+      font-weight: lighter;
+    }
+    .dark .modal h2 { color: #FFF; }
+    .modal label {
+      display: block;
+      font-size: 10pt;
+      color: #888;
+      margin: 10px 0 4px;
+    }
+    .modal input {
+      width: 100%;
+      padding: 6px 8px;
+      border: none;
+      border-bottom: 1px solid #ccc;
+      background: transparent;
+      color: #151515;
+      font-family: inherit;
+      font-size: 12pt;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .modal input:focus { border-bottom-color: #D50303; }
+    .dark .modal input { color: #FFF; border-bottom-color: #444; }
+    .dark .modal input:focus { border-bottom-color: #cc8f1a; }
+    .modal-actions {
+      text-align: center;
+      padding-top: 18px;
+      font-size: 12pt;
+    }
+    .modal-actions a {
+      color: #D50303;
+      text-decoration: none;
+      font-weight: 700;
+      cursor: pointer;
+      margin: 0 6px;
+    }
+    .modal-actions a.muted { color: #888; }
+    .dark .modal-actions a { color: #cc8f1a; }
+    .dark .modal-actions a.muted { color: #666; }
+
+    /* 状态浮窗（左上小框，结构上致敬 #map_lxsz） */
+    #status-panel {
+      position: fixed;
+      background-color: rgba(128,128,128,0.07);
+      left: 10px;
+      top: 36px;
+      display: none;
+      margin: 5px;
+      padding: 6px 10px;
+      font-family: Kaiti, "Noto Sans SC", sans-serif;
+      font-size: 10pt;
+      max-width: 220px;
+      border-radius: 2px;
+      z-index: 3;
+      color: #555;
+      white-space: pre-wrap;
+    }
+    .dark #status-panel { color: #aaa; background-color: rgba(255,255,255,0.05); }
+    @media (max-width: 800px) { #status-panel { display: none !important; } }
+
+    /* —— ANSI 16 色（白底素雅版） —— */
+    .fg30 { color: #2e2e2e; } .fg31 { color: #b22222; }
+    .fg32 { color: #2a7a2a; } .fg33 { color: #a07820; }
+    .fg34 { color: #2050a0; } .fg35 { color: #8a3a8a; }
+    .fg36 { color: #2080a0; } .fg37 { color: #888888; }
+    .bfg30 { color: #555555; } .bfg31 { color: #D50303; }
+    .bfg32 { color: #1a8a1a; } .bfg33 { color: #c89820; }
+    .bfg34 { color: #2070d0; } .bfg35 { color: #c050c0; }
+    .bfg36 { color: #20a0c0; } .bfg37 { color: #404040; }
+    .bg40 { background: #e8e8e8; } .bg41 { background: #ffe0e0; }
+    .bg42 { background: #e0ffe0; } .bg43 { background: #fff7d0; }
+    .bg44 { background: #e0e8ff; } .bg45 { background: #ffe0ff; }
+    .bg46 { background: #e0f8ff; } .bg47 { background: #dddddd; }
+
+    /* —— ANSI 16 色（夜色高亮版） —— */
+    .dark .fg30 { color: #888; }   .dark .fg31 { color: #ff6b6b; }
+    .dark .fg32 { color: #4ee06b; } .dark .fg33 { color: #f5e542; }
+    .dark .fg34 { color: #5ca7ff; } .dark .fg35 { color: #ff66ff; }
+    .dark .fg36 { color: #4ee0e0; } .dark .fg37 { color: #cccccc; }
+    .dark .bfg30 { color: #aaa; }   .dark .bfg31 { color: #ff8585; }
+    .dark .bfg32 { color: #6ef07e; } .dark .bfg33 { color: #f7e958; }
+    .dark .bfg34 { color: #7eb8ff; } .dark .bfg35 { color: #ff8aff; }
+    .dark .bfg36 { color: #6eecf2; } .dark .bfg37 { color: #FFFFFF; }
+    .dark .bg40 { background: #2a2a2a; } .dark .bg41 { background: #4d1d1d; }
+    .dark .bg42 { background: #1d4d1d; } .dark .bg43 { background: #4d471d; }
+    .dark .bg44 { background: #1d224d; } .dark .bg45 { background: #4d1d4d; }
+    .dark .bg46 { background: #1d404d; } .dark .bg47 { background: #555; }
+
+    .bold { font-weight: 700; }
     .underline { text-decoration: underline; }
     .blink { animation: blink 1s steps(2, start) infinite; }
     @keyframes blink { to { visibility: hidden; } }
   </style>
 </head>
 <body>
-  <div id="toolbar">
-    <label>桥接地址：</label>
-    <input id="server" type="text" value="ws://localhost:8765" placeholder="WebSocket 地址">
-    <button id="connect-btn">连接</button>
-    <button id="disconnect-btn">断开</button>
-    <button id="clear-btn">清屏</button>
-    <span id="status" class="disconnected">未连接</span>
+  <h3 class="topbar">侠 客 行<span class="sep">·</span><a id="status-text">未连接</a></h3>
+
+  <div id="controls">
+    <a id="ctrl-theme">夜</a>
+    <a id="ctrl-settings">设</a>
+    <a id="ctrl-clear">清</a>
   </div>
-  <div id="output"></div>
-  <div id="input-area">
-    <input id="input" type="text" autocomplete="off" spellcheck="false"
-           placeholder="输入命令并回车（↑/↓ 浏览历史；多行命令用 ; 分隔）">
-    <button id="send-btn">发送</button>
+
+  <div id="status-panel"></div>
+
+  <div class="outerContainer" id="scroller">
+    <div class="container">
+      <div id="story"></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="input-row">
+      <span class="prompt-mark">▸</span>
+      <input id="input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="在此输入命令…  ↑/↓ 浏览历史   ;   分隔多条">
+    </div>
+    <div class="nav-row">
+      <a id="nav-connect">【连】</a>
+      <a id="nav-disconnect">【断】</a>
+      <a id="nav-look" data-cmd="look">【观】</a>
+      <a id="nav-score" data-cmd="score">【己】</a>
+      <a id="nav-inv"   data-cmd="i">【囊】</a>
+      <a id="nav-who"   data-cmd="who">【众】</a>
+      <a id="nav-clear">【清】</a>
+      <a id="nav-theme">【夜】</a>
+      <a id="nav-settings">【设】</a>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="modal-mask"></div>
+  <div class="modal" id="modal-settings">
+    <h2>桥 接 设 置</h2>
+    <label>WebSocket 地址</label>
+    <input id="server" type="text" value="ws://localhost:8765" placeholder="ws://host:port">
+    <label>命令字体</label>
+    <input id="font-pref" type="text" placeholder="留空使用默认楷体；可填 monospace">
+    <div class="modal-actions">
+      <a id="settings-save">【存】</a>
+      <a id="settings-close" class="muted">【闭】</a>
+    </div>
   </div>
 
   <script>
   (function () {
     const $ = id => document.getElementById(id);
-    const out = $('output'), inp = $('input'), status = $('status');
+    const story = $('story'), inp = $('input'), scroller = $('scroller'),
+          statusText = $('status-text'), modal = $('modal-settings'), mask = $('modal-mask');
 
     let ws = null;
     const history = [];
     let historyIdx = -1;
     let pendingInput = '';
 
-    // 持久化：记住上次的桥接地址
-    const savedServer = localStorage.getItem('pkuxkx.server');
-    if (savedServer) $('server').value = savedServer;
+    // —— 偏好持久化 —— //
+    const prefs = {
+      get(k, d) { try { return localStorage.getItem('xkx.' + k) ?? d; } catch (_) { return d; } },
+      set(k, v) { try { localStorage.setItem('xkx.' + k, v); } catch (_) {} }
+    };
+    $('server').value = prefs.get('server', 'ws://localhost:8765');
+    $('font-pref').value = prefs.get('font', '');
+    if (prefs.get('theme', 'light') === 'dark') document.body.classList.add('dark');
+    applyFont(prefs.get('font', ''));
 
-    function setStatus(state, text) {
-      status.className = state;
-      status.textContent = text;
+    function applyFont(v) {
+      if (v && v.trim()) {
+        story.style.fontFamily = v + ', Kaiti, "Noto Sans SC", sans-serif';
+        inp.style.fontFamily = v + ', Kaiti, "Noto Sans SC", sans-serif';
+      } else {
+        story.style.fontFamily = '';
+        inp.style.fontFamily = '';
+      }
     }
 
+    function setStatus(state, label) {
+      statusText.textContent = label;
+      statusText.dataset.state = state;
+      statusText.style.color = state === 'connected' ? '' :
+                                state === 'connecting' ? '#a07820' :
+                                state === 'error' ? '#a02a2a' : '';
+    }
+
+    function atBottom() {
+      return scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 30;
+    }
     function append(html) {
-      const atBottom = out.scrollTop + out.clientHeight >= out.scrollHeight - 20;
-      out.insertAdjacentHTML('beforeend', html);
-      if (atBottom) out.scrollTop = out.scrollHeight;
+      const stick = atBottom();
+      story.insertAdjacentHTML('beforeend', html);
+      if (stick) scroller.scrollTop = scroller.scrollHeight;
     }
-
     function appendSystem(text) {
-      const esc = escapeHtml(text);
-      append(`<div class="system">[系统] ${esc}</div>`);
+      append('<span class="system">' + escapeHtml(text) + '</span>');
     }
-
     function appendEcho(text) {
-      append(`<div class="echo">&gt; ${escapeHtml(text)}</div>`);
+      append('<span class="echo">' + escapeHtml(text) + '</span>');
     }
-
     function escapeHtml(s) {
-      return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+      return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     }
 
-    // —— ANSI 解析 ——
-    // 状态在多次调用间保留：MUD 一次输出常被拆成多个 WebSocket 消息
+    // —— ANSI 解析（状态跨消息保留） —— //
     const ansi = { bold: false, fg: null, bg: null, underline: false, blink: false };
-
     function ansiClasses() {
       const cls = [];
       if (ansi.fg !== null) cls.push((ansi.bold ? 'bfg' : 'fg') + ansi.fg);
@@ -182,135 +446,132 @@
       if (ansi.blink)       cls.push('blink');
       return cls;
     }
-
     function applyCodes(codes) {
       if (codes.length === 0) codes = [0];
-      for (const code of codes) {
-        if (code === 0) { ansi.bold = false; ansi.fg = null; ansi.bg = null;
-                          ansi.underline = false; ansi.blink = false; }
-        else if (code === 1) ansi.bold = true;
-        else if (code === 4) ansi.underline = true;
-        else if (code === 5) ansi.blink = true;
-        else if (code === 22) ansi.bold = false;
-        else if (code === 24) ansi.underline = false;
-        else if (code === 25) ansi.blink = false;
-        else if (code === 39) ansi.fg = null;
-        else if (code === 49) ansi.bg = null;
-        else if (code >= 30 && code <= 37) ansi.fg = code;
-        else if (code >= 40 && code <= 47) ansi.bg = code;
-        else if (code >= 90 && code <= 97) { ansi.fg = code - 60; ansi.bold = true; }
+      for (const c of codes) {
+        if (c === 0)      { ansi.bold = false; ansi.fg = null; ansi.bg = null;
+                            ansi.underline = false; ansi.blink = false; }
+        else if (c === 1) ansi.bold = true;
+        else if (c === 4) ansi.underline = true;
+        else if (c === 5) ansi.blink = true;
+        else if (c === 22) ansi.bold = false;
+        else if (c === 24) ansi.underline = false;
+        else if (c === 25) ansi.blink = false;
+        else if (c === 39) ansi.fg = null;
+        else if (c === 49) ansi.bg = null;
+        else if (c >= 30 && c <= 37) ansi.fg = c;
+        else if (c >= 40 && c <= 47) ansi.bg = c;
+        else if (c >= 90 && c <= 97) { ansi.fg = c - 60; ansi.bold = true; }
       }
     }
-
-    let textBuffer = '';
-
-    function renderChunk(text) {
-      // 处理 \r\n 与裸 \r
-      text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      // 拆分 ANSI 转义序列
-      let html = '';
-      const re = /\x1b\[([0-9;]*)([A-Za-z])/g;
-      let last = 0, m;
-      while ((m = re.exec(text)) !== null) {
-        if (m.index > last) {
-          html += wrap(text.slice(last, m.index));
-        }
-        if (m[2] === 'm') {
-          const codes = m[1].length ? m[1].split(';').map(n => parseInt(n, 10) || 0) : [0];
-          applyCodes(codes);
-        }
-        // 其余 CSI（光标移动等）忽略
-        last = m.index + m[0].length;
-      }
-      if (last < text.length) html += wrap(text.slice(last));
-      append(html);
-    }
-
     function wrap(text) {
       if (!text) return '';
       const esc = escapeHtml(text);
       const cls = ansiClasses();
       return cls.length ? `<span class="${cls.join(' ')}">${esc}</span>` : esc;
     }
+    function renderChunk(text) {
+      text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      let html = '';
+      const re = /\x1b\[([0-9;]*)([A-Za-z])/g;
+      let last = 0, m;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) html += wrap(text.slice(last, m.index));
+        if (m[2] === 'm') {
+          const codes = m[1].length ? m[1].split(';').map(n => parseInt(n, 10) || 0) : [0];
+          applyCodes(codes);
+        }
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) html += wrap(text.slice(last));
+      append(html);
+    }
 
-    // —— 连接与发送 ——
+    // —— 连接 —— //
     function connect() {
       const url = $('server').value.trim();
-      if (!url) { appendSystem('请填写 WebSocket 地址'); return; }
+      if (!url) { appendSystem('请先在【设】中填写 WebSocket 地址'); return; }
       if (ws && ws.readyState <= 1) { appendSystem('已经连接，无需重复连接'); return; }
-      localStorage.setItem('pkuxkx.server', url);
+      prefs.set('server', url);
       setStatus('connecting', '连接中…');
       appendSystem('正在连接 ' + url);
-      try {
-        ws = new WebSocket(url);
-      } catch (e) {
-        setStatus('disconnected', '未连接');
-        appendSystem('连接失败：' + e.message);
-        return;
-      }
+      try { ws = new WebSocket(url); }
+      catch (e) { setStatus('disconnected', '未连接'); appendSystem('连接失败：' + e.message); return; }
       ws.binaryType = 'arraybuffer';
-      ws.onopen = () => {
-        setStatus('connected', '已连接');
-        appendSystem('连接成功');
-        inp.focus();
-      };
-      ws.onmessage = (ev) => {
+      ws.onopen = () => { setStatus('connected', '已连接'); appendSystem('连接成功'); inp.focus(); };
+      ws.onmessage = ev => {
         let data = ev.data;
-        if (data instanceof ArrayBuffer) {
-          // 桥接若发送二进制（UTF-8 字节）
-          data = new TextDecoder('utf-8').decode(new Uint8Array(data));
-        }
+        if (data instanceof ArrayBuffer) data = new TextDecoder('utf-8').decode(new Uint8Array(data));
         renderChunk(data);
       };
-      ws.onerror = () => {
-        appendSystem('WebSocket 出现错误（可能是地址不可达或桥接未启动）');
-      };
-      ws.onclose = (ev) => {
-        setStatus('disconnected', '未连接');
-        appendSystem('连接已关闭' + (ev.code ? `（code=${ev.code}）` : ''));
+      ws.onerror = () => appendSystem('WebSocket 出现错误（地址不可达或桥接未启动？）');
+      ws.onclose = ev => {
+        setStatus('disconnected', '已断开');
+        appendSystem('连接已关闭' + (ev && ev.code ? `（code=${ev.code}）` : ''));
       };
     }
-
-    function disconnect() {
-      if (ws) { ws.close(); ws = null; }
-    }
-
+    function disconnect() { if (ws) { ws.close(); ws = null; } }
     function send(line) {
-      if (!ws || ws.readyState !== 1) {
-        appendSystem('尚未连接到服务器');
-        return;
-      }
+      if (!ws || ws.readyState !== 1) { appendSystem('尚未连接到服务器'); return; }
       ws.send(line + '\n');
     }
-
     function submit() {
       const raw = inp.value;
-      if (!raw) { send(''); return; }
-      // 历史记录
+      if (!raw) { appendEcho(''); send(''); return; }
       if (history[history.length - 1] !== raw) history.push(raw);
       historyIdx = history.length;
-      // 多命令分号拆分
       const parts = raw.split(';').map(s => s.trim()).filter(s => s.length);
-      for (const cmd of parts) {
-        appendEcho(cmd);
-        send(cmd);
-      }
-      if (parts.length === 0) { appendEcho(''); send(''); }
+      for (const cmd of parts) { appendEcho(cmd); send(cmd); }
       inp.value = '';
       pendingInput = '';
     }
 
-    // —— 事件绑定 ——
-    $('connect-btn').addEventListener('click', connect);
-    $('disconnect-btn').addEventListener('click', disconnect);
-    $('clear-btn').addEventListener('click', () => { out.innerHTML = ''; });
-    $('send-btn').addEventListener('click', () => { submit(); inp.focus(); });
+    // —— 主题与设置 —— //
+    function toggleTheme() {
+      document.body.classList.toggle('dark');
+      prefs.set('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    }
+    function openSettings() { modal.classList.add('open'); mask.classList.add('open'); $('server').focus(); }
+    function closeSettings() { modal.classList.remove('open'); mask.classList.remove('open'); }
+    function saveSettings() {
+      prefs.set('server', $('server').value.trim());
+      const f = $('font-pref').value.trim();
+      prefs.set('font', f);
+      applyFont(f);
+      closeSettings();
+      appendSystem('设置已保存');
+    }
 
-    inp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        submit();
-      } else if (e.key === 'ArrowUp') {
+    // —— 事件绑定 —— //
+    $('nav-connect').addEventListener('click', connect);
+    $('nav-disconnect').addEventListener('click', disconnect);
+    $('nav-clear').addEventListener('click', () => { story.innerHTML = ''; });
+    $('nav-theme').addEventListener('click', toggleTheme);
+    $('nav-settings').addEventListener('click', openSettings);
+    $('ctrl-clear').addEventListener('click', () => { story.innerHTML = ''; });
+    $('ctrl-theme').addEventListener('click', toggleTheme);
+    $('ctrl-settings').addEventListener('click', openSettings);
+    $('settings-save').addEventListener('click', saveSettings);
+    $('settings-close').addEventListener('click', closeSettings);
+    mask.addEventListener('click', closeSettings);
+    statusText.addEventListener('click', () => {
+      const s = statusText.dataset.state;
+      if (s === 'connected') disconnect(); else connect();
+    });
+
+    // 快捷命令按钮
+    document.querySelectorAll('.nav-row a[data-cmd]').forEach(el => {
+      el.addEventListener('click', () => {
+        const cmd = el.dataset.cmd;
+        appendEcho(cmd);
+        send(cmd);
+        inp.focus();
+      });
+    });
+
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); submit(); }
+      else if (e.key === 'ArrowUp') {
         if (history.length === 0) return;
         e.preventDefault();
         if (historyIdx === history.length) pendingInput = inp.value;
@@ -322,13 +583,16 @@
         e.preventDefault();
         historyIdx = Math.min(history.length, historyIdx + 1);
         inp.value = historyIdx === history.length ? pendingInput : history[historyIdx];
+      } else if (e.key === 'Escape') {
+        if (modal.classList.contains('open')) closeSettings();
       }
     });
 
-    // 启动提示
-    appendSystem('北大侠客行 Web 客户端已就绪');
-    appendSystem('需先运行本地桥接：node bridge.js（默认端口 8765 → mud.pkuxkx.net:8081）');
-    appendSystem('点击「连接」开始游戏。');
+    // 启动文案
+    appendSystem('侠客行 · Web 客户端 已就绪');
+    appendSystem('需先运行本地桥接：node bridge.js   （默认 ws://localhost:8765 → mud.pkuxkx.net:8081）');
+    appendSystem('点击底部 【连】 开始游戏；【夜】切换夜色；【设】配置桥接地址');
+    setStatus('disconnected', '未连接');
     inp.focus();
   })();
   </script>
