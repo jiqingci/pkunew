@@ -132,8 +132,49 @@ function startBridge(opts = {}) {
   const log      = opts.log || (() => {});
 
   const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('PKUXKX WebSocket ↔ Telnet 桥接运行中。\n');
+    // CORS 预检
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, anthropic-version'
+      });
+      return res.end();
+    }
+    // AI 反向代理：浏览器 POST {url, headers, body} → 桥接转发到上游 → 原样回传
+    // 解决浏览器直调 OpenAI/Anthropic 的 CORS 问题。
+    if (req.method === 'POST' && req.url === '/ai-proxy') {
+      let body = '';
+      req.setEncoding('utf8');
+      req.on('data', c => { body += c; if (body.length > 2 * 1024 * 1024) req.destroy(); });
+      req.on('end', async () => {
+        try {
+          const r = JSON.parse(body);
+          if (!r.url || typeof r.url !== 'string') throw new Error('missing url');
+          // 简单白名单：只允许 https / 本机 http（Ollama）
+          if (!/^(https:\/\/|http:\/\/(127\.0\.0\.1|localhost))/i.test(r.url)) {
+            throw new Error('only https or local http allowed');
+          }
+          const upstream = await fetch(r.url, {
+            method: r.method || 'POST',
+            headers: r.headers || {},
+            body: r.body == null ? undefined : (typeof r.body === 'string' ? r.body : JSON.stringify(r.body))
+          });
+          const text = await upstream.text();
+          res.writeHead(upstream.status, {
+            'Content-Type': upstream.headers.get('content-type') || 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+          return res.end(text);
+        } catch (e) {
+          res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    res.end('PKUXKX WebSocket ↔ Telnet 桥接运行中。WebSocket: /  · AI proxy: POST /ai-proxy\n');
   });
   const wss = new WebSocketServer({ server });
 

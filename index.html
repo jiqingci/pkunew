@@ -399,6 +399,93 @@
     .dark #compass a:hover { background: #cc8f1a; color: #000; }
     .dark #compass a.center { background: rgba(255,255,255,0.04); color: #888; }
 
+    /* —— 设置面板分组 —— */
+    .modal.settings-modal {
+      width: min(620px, 92vw);
+      max-height: 86vh;
+      overflow-y: auto;
+      padding: 22px 28px 18px;
+    }
+    .settings-section { margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px dashed #ddd; }
+    .dark .settings-section { border-bottom-color: #333; }
+    .settings-section:last-of-type { border-bottom: none; }
+    .settings-section h3 {
+      font-family: Kaiti, "Noto Sans SC", serif;
+      font-size: 13pt;
+      font-weight: 700;
+      color: #D50303;
+      margin: 0 0 8px;
+    }
+    .dark .settings-section h3 { color: #cc8f1a; }
+    .settings-section .row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .settings-section .row label { flex: 0 0 110px; color: #888; font-size: 10pt; margin: 0; }
+    .settings-section .row input[type=text],
+    .settings-section .row input[type=password],
+    .settings-section .row select {
+      flex: 1;
+      padding: 5px 8px;
+      border: none;
+      border-bottom: 1px solid #ccc;
+      background: transparent;
+      color: #151515;
+      font-family: inherit;
+      font-size: 11pt;
+      outline: none;
+    }
+    .settings-section .row input:focus,
+    .settings-section .row select:focus { border-bottom-color: #D50303; }
+    .dark .settings-section .row input,
+    .dark .settings-section .row select { color: #fff; border-bottom-color: #444; }
+    .dark .settings-section .row input:focus,
+    .dark .settings-section .row select:focus { border-bottom-color: #cc8f1a; }
+    .settings-section textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      background: transparent;
+      color: #151515;
+      font-family: Consolas, monospace;
+      font-size: 10pt;
+      outline: none;
+      resize: vertical;
+      min-height: 60px;
+      border-radius: 3px;
+    }
+    .dark .settings-section textarea { color: #fff; border-color: #333; }
+    .settings-section .check { font-size: 10pt; color: #888; cursor: pointer; user-select: none; padding: 4px 0; display: block; }
+    .settings-section .check input { vertical-align: middle; margin-right: 6px; }
+    .settings-section .hint { font-size: 9pt; color: #aaa; padding: 4px 0; }
+    .dark .settings-section .hint { color: #777; }
+    .settings-section kbd {
+      display: inline-block;
+      padding: 1px 5px;
+      margin: 1px 2px;
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+      color: #333;
+      border-radius: 3px;
+      font-family: Consolas, monospace;
+      font-size: 9pt;
+    }
+    .dark .settings-section kbd { background: #2a2a2a; color: #ddd; border-color: #444; }
+
+    /* AI 回复气泡 */
+    #story .ai-reply {
+      display: block;
+      margin: 6px 0;
+      padding: 8px 12px;
+      background: rgba(46, 134, 222, 0.06);
+      border-left: 3px solid #2070d0;
+      font-family: Kaiti, "Noto Sans SC", sans-serif;
+      font-size: 12pt;
+      white-space: pre-wrap;
+      color: #151515;
+    }
+    .dark #story .ai-reply { background: rgba(94, 167, 255, 0.06); border-left-color: #5ca7ff; color: #e0e0e0; }
+    #story .ai-reply::before { content: "🤖 AI · "; color: #2070d0; font-weight: 700; }
+    .dark #story .ai-reply::before { color: #5ca7ff; }
+
     /* —— 脚本面板 —— */
     #script-text {
       width: 100%;
@@ -655,18 +742,67 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       <a id="script-close" class="muted">【闭】</a>
     </div>
   </div>
-  <div class="modal" id="modal-settings">
-    <h2>桥 接 设 置</h2>
-    <label>WebSocket 地址</label>
-    <input id="server" type="text" value="ws://localhost:8765" placeholder="ws://host:port">
-    <label>编码（PKUXKX 现代账号默认 UTF-8；老账号可能仍是 GBK）</label>
-    <select id="charset" style="width:100%;padding:6px 8px;border:none;border-bottom:1px solid #ccc;background:transparent;font-family:inherit;font-size:12pt;outline:none">
-      <option value="utf8">UTF-8（Mudlet 模式 / 推荐）</option>
-      <option value="gbk">GBK（传统 8080 GBK）</option>
-      <option value="big5">Big5</option>
-    </select>
-    <label>命令字体</label>
-    <input id="font-pref" type="text" placeholder="留空使用默认；可填 monospace">
+  <div class="modal settings-modal" id="modal-settings">
+    <h2>设  置</h2>
+
+    <div class="settings-section">
+      <h3>连接</h3>
+      <div class="row"><label>WebSocket 地址</label><input id="server" type="text" placeholder="ws://host:port"></div>
+      <div class="row"><label>编码</label>
+        <select id="charset">
+          <option value="utf8">UTF-8（Mudlet 模式 / 推荐）</option>
+          <option value="gbk">GBK（传统 8080 GBK）</option>
+          <option value="big5">Big5</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>自动登录</h3>
+      <div class="row"><label>账号</label><input id="login-user" type="text" autocomplete="username"></div>
+      <div class="row"><label>密码</label><input id="login-pass" type="password" autocomplete="current-password"></div>
+      <label class="check"><input type="checkbox" id="login-auto"> 启用自动登录（连接后自动发送）</label>
+      <div class="hint">⚠ 密码以明文存于浏览器 localStorage / Electron 用户数据目录，仅适用于个人电脑</div>
+    </div>
+
+    <div class="settings-section">
+      <h3>AI 助手</h3>
+      <div class="row"><label>服务商</label>
+        <select id="ai-provider">
+          <option value="deepseek">DeepSeek</option>
+          <option value="openai">OpenAI</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="ollama">Ollama (本机)</option>
+          <option value="custom">自定义 (OpenAI 兼容)</option>
+        </select>
+      </div>
+      <div class="row"><label>Base URL</label><input id="ai-baseurl" type="text" placeholder="留空用默认"></div>
+      <div class="row"><label>API Key</label><input id="ai-apikey" type="password"></div>
+      <div class="row"><label>模型</label><input id="ai-model" type="text" placeholder="留空用默认"></div>
+      <label style="display:block;color:#888;font-size:10pt;margin:6px 0 2px">系统提示词</label>
+      <textarea id="ai-prompt" rows="3"></textarea>
+      <label class="check"><input type="checkbox" id="ai-via-bridge" checked> 通过桥接代理转发（避免 CORS，推荐）</label>
+      <div class="hint">在主输入框打 <kbd>/ai 你的问题</kbd> 调用，回复显示在主屏。</div>
+    </div>
+
+    <div class="settings-section">
+      <h3>显示</h3>
+      <div class="row"><label>命令字体</label><input id="font-pref" type="text" placeholder="留空使用默认；可填 monospace"></div>
+    </div>
+
+    <div class="settings-section">
+      <h3>键位说明</h3>
+      <div class="hint" style="line-height:1.7">
+        <kbd>B</kbd>背包 · <kbd>L</kbd>查看 · <kbd>M</kbd>地图 · <kbd>W</kbd>玩家
+        · <kbd>S</kbd>能力 · <kbd>H</kbd>血量 · <kbd>X</kbd>出口
+        · <kbd>F</kbd>fullme · <kbd>Q</kbd>任务 · <kbd>I</kbd>背包<br>
+        <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 走路（输入框为空）·
+        <kbd>Alt</kbd>+方向 始终走路 · <kbd>NumPad</kbd> 8 方位+5(look)+ +/-(u/d)<br>
+        <kbd>Esc</kbd> 关闭面板 / 打开本设置 · <kbd>Enter</kbd> 空回车=重复上指
+      </div>
+    </div>
+
     <div class="modal-actions">
       <a id="settings-save">【存】</a>
       <a id="settings-close" class="muted">【闭】</a>
@@ -693,11 +829,9 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlWs   = urlParams.get('ws');
     const urlAuto = urlParams.get('autoconnect') === '1';
-    $('server').value = urlWs || prefs.get('server', 'ws://localhost:8765');
-    $('font-pref').value = prefs.get('font', '');
-    $('charset').value = prefs.get('charset', 'utf8');
     if (prefs.get('theme', 'light') === 'dark') document.body.classList.add('dark');
     applyFont(prefs.get('font', ''));
+    // 表单字段在 loadSettingsToForm() 中统一初始化（设置面板每次打开也会调用）
 
     function applyFont(v) {
       if (v && v.trim()) {
@@ -980,6 +1114,7 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
         setStatus('disconnected', '已断开');
         appendSystem('连接已关闭' + (ev && ev.code ? `（code=${ev.code}）` : ''));
         pushLog({ dir: 'meta', kind: 'event', desc: 'WebSocket 已关闭 code=' + (ev && ev.code) });
+        resetLogin();
       };
     }
     function disconnect() { if (ws) { ws.close(); ws = null; } }
@@ -993,19 +1128,19 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     function submit() {
       const raw = inp.value;
       if (!raw) {
-        // 空回车 = 重复上一条指令；尚未发过任何命令时退化为发空行（用于初始登录确认）
-        if (history.length > 0) {
-          const last = history[history.length - 1];
-          appendEcho(last);
-          send(last);
-        } else {
-          appendEcho('');
-          send('');
-        }
+        if (history.length > 0) { const last = history[history.length - 1]; appendEcho(last); send(last); }
+        else { appendEcho(''); send(''); }
         return;
       }
       if (history[history.length - 1] !== raw) history.push(raw);
       historyIdx = history.length;
+      // 客户端命令：/ai 提问 → 调 AI（不发到服务器）
+      if (raw.startsWith('/ai ') || raw === '/ai') {
+        inp.value = ''; pendingInput = '';
+        const q = raw.slice(3).trim();
+        if (q) askAi(q); else appendSystem('用法：/ai 你的问题');
+        return;
+      }
       const parts = raw.split(';').map(s => s.trim()).filter(s => s.length);
       for (const cmd of parts) { appendEcho(cmd); send(cmd); }
       inp.value = '';
@@ -1242,13 +1377,12 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       scriptHooks.match.length = 0;
     }
     function fireData(text) {
+      tryAutoLogin(text);
       scriptHooks.data.forEach(cb => { try { cb(text); } catch (e) { console.error('script.data:', e); } });
-      // 主屏文本里提取出口与房间名（GMCP 不可用时的 fallback）
       const exits = tryParseExitsFromText(text);
       if (exits) { room.exits = exits; updateMinimap(); }
       const rname = tryParseRoomFromText(text);
       if (rname) { room.name = rname; updateMinimap(); }
-      // 正则触发器
       for (const t of scriptHooks.match) {
         const m = t.re.exec(text);
         if (m) { try { t.cb(m, text); } catch (e) { console.error('script.match:', e); } }
@@ -1282,7 +1416,11 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       document.body.classList.toggle('dark');
       prefs.set('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     }
-    function openSettings() { modal.classList.add('open'); mask.classList.add('open'); $('server').focus(); }
+    function openSettings() {
+      loadSettingsToForm();
+      modal.classList.add('open'); mask.classList.add('open');
+      $('server').focus();
+    }
     function closeSettings() {
       modal.classList.remove('open');
       if (!logPanel.classList.contains('open')) mask.classList.remove('open');
@@ -1295,10 +1433,125 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       const cs = $('charset').value;
       const csChanged = prefs.get('charset', 'utf8') !== cs;
       prefs.set('charset', cs);
+      // 登录
+      prefs.set('login.user', $('login-user').value.trim());
+      prefs.set('login.pass', $('login-pass').value);
+      prefs.set('login.auto', $('login-auto').checked ? '1' : '0');
+      // AI
+      prefs.set('ai.provider', $('ai-provider').value);
+      prefs.set('ai.baseUrl',  $('ai-baseurl').value.trim());
+      prefs.set('ai.apiKey',   $('ai-apikey').value);
+      prefs.set('ai.model',    $('ai-model').value.trim());
+      prefs.set('ai.prompt',   $('ai-prompt').value);
+      prefs.set('ai.viaBridge', $('ai-via-bridge').checked ? '1' : '0');
       closeSettings();
       appendSystem('设置已保存');
-      if (csChanged && ws && ws.readyState <= 1) {
-        appendSystem('编码改为 ' + cs + '：请断开后重连生效');
+      if (csChanged && ws && ws.readyState <= 1) appendSystem('编码改为 ' + cs + '：请断开后重连生效');
+    }
+    function loadSettingsToForm() {
+      $('server').value      = urlWs || prefs.get('server', 'ws://localhost:8765');
+      $('charset').value     = prefs.get('charset', 'utf8');
+      $('font-pref').value   = prefs.get('font', '');
+      $('login-user').value  = prefs.get('login.user', '');
+      $('login-pass').value  = prefs.get('login.pass', '');
+      $('login-auto').checked= prefs.get('login.auto', '0') === '1';
+      $('ai-provider').value = prefs.get('ai.provider', 'deepseek');
+      $('ai-baseurl').value  = prefs.get('ai.baseUrl', '');
+      $('ai-apikey').value   = prefs.get('ai.apiKey', '');
+      $('ai-model').value    = prefs.get('ai.model', '');
+      $('ai-prompt').value   = prefs.get('ai.prompt', '你是北大侠客行（PKUXKX）MUD 游戏的中文助手，简洁回答攻略、武功、剧情、命令等问题。');
+      $('ai-via-bridge').checked = prefs.get('ai.viaBridge', '1') === '1';
+    }
+
+    // —— 自动登录状态机 —— //
+    const login = { state: 'idle' };
+    function resetLogin() { login.state = 'idle'; }
+    function tryAutoLogin(text) {
+      if (prefs.get('login.auto', '0') !== '1') return;
+      const u = prefs.get('login.user', '');
+      const p = prefs.get('login.pass', '');
+      if (!u || !p) return;
+      if (login.state === 'idle' && /您的英文名字|英文名字.*[:：]/.test(text)) {
+        login.state = 'sent_user';
+        appendSystem('自动登录：发送账号 ' + u);
+        setTimeout(() => send(u), 80);
+      } else if (login.state === 'sent_user' && /请输入密码|密码.*[:：]/.test(text)) {
+        login.state = 'sent_pass';
+        appendSystem('自动登录：发送密码 ******');
+        setTimeout(() => send(p), 80);
+      } else if (login.state === 'sent_pass' && /请按回车|进入普通模式|不支持MXP/.test(text)) {
+        appendSystem('自动登录：进入游戏');
+        setTimeout(() => send(''), 80);
+        login.state = 'done';
+      }
+    }
+
+    // —— AI 调用 —— //
+    const AI_PROVIDERS = {
+      deepseek:   { url: 'https://api.deepseek.com/v1',          style: 'openai',    model: 'deepseek-chat' },
+      openai:     { url: 'https://api.openai.com/v1',            style: 'openai',    model: 'gpt-4o-mini' },
+      openrouter: { url: 'https://openrouter.ai/api/v1',         style: 'openai',    model: 'meta-llama/llama-3.1-8b-instruct:free' },
+      anthropic:  { url: 'https://api.anthropic.com/v1',         style: 'anthropic', model: 'claude-haiku-4-5-20251001' },
+      ollama:     { url: 'http://127.0.0.1:11434/v1',            style: 'openai',    model: 'qwen2.5' },
+      custom:     { url: '',                                      style: 'openai',    model: '' }
+    };
+    async function callAi(prompt) {
+      const provider = prefs.get('ai.provider', 'deepseek');
+      const cfg = AI_PROVIDERS[provider] || AI_PROVIDERS.custom;
+      const baseUrl = (prefs.get('ai.baseUrl', '') || cfg.url).replace(/\/+$/, '');
+      const apiKey  = prefs.get('ai.apiKey', '');
+      const model   = prefs.get('ai.model', '') || cfg.model;
+      const sysPrompt = prefs.get('ai.prompt', '');
+      const viaBridge = prefs.get('ai.viaBridge', '1') === '1';
+      if (!baseUrl) throw new Error('未配置 Base URL');
+      if (!model)   throw new Error('未配置模型');
+
+      let upUrl, headers, body;
+      if (cfg.style === 'anthropic') {
+        upUrl = baseUrl + '/messages';
+        headers = { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' };
+        body = { model, max_tokens: 1024, system: sysPrompt || undefined,
+                 messages: [{ role: 'user', content: prompt }] };
+      } else {
+        upUrl = baseUrl + '/chat/completions';
+        headers = { 'content-type': 'application/json', 'authorization': 'Bearer ' + apiKey };
+        const msgs = [];
+        if (sysPrompt) msgs.push({ role: 'system', content: sysPrompt });
+        msgs.push({ role: 'user', content: prompt });
+        body = { model, messages: msgs, stream: false };
+      }
+
+      let resp;
+      if (viaBridge) {
+        const wsUrl = $('server').value.trim();
+        const proxy = wsUrl.replace(/^ws/i, 'http').split('?')[0].replace(/\/$/, '') + '/ai-proxy';
+        resp = await fetch(proxy, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url: upUrl, headers, body })
+        });
+      } else {
+        resp = await fetch(upUrl, { method: 'POST', headers, body: JSON.stringify(body) });
+      }
+      const txt = await resp.text();
+      let j; try { j = JSON.parse(txt); } catch (_) { throw new Error('上游返回非 JSON: ' + txt.slice(0, 200)); }
+      if (!resp.ok) throw new Error((j.error && (j.error.message || j.error)) || resp.status + ' ' + resp.statusText);
+      if (cfg.style === 'anthropic') {
+        return (j.content && j.content[0] && j.content[0].text) || JSON.stringify(j).slice(0, 500);
+      }
+      return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content)
+             || JSON.stringify(j).slice(0, 500);
+    }
+    async function askAi(question) {
+      if (!question) return;
+      appendEcho('/ai ' + question);
+      append('<div class="ai-reply" style="opacity:.5">思考中…</div>');
+      const placeholder = story.lastElementChild;
+      try {
+        const reply = await callAi(question);
+        if (placeholder) placeholder.outerHTML = '<div class="ai-reply">' + escapeHtml(reply) + '</div>';
+      } catch (e) {
+        if (placeholder) placeholder.outerHTML = '<div class="ai-reply" style="color:#D50303">AI 错误：' + escapeHtml(e.message) + '</div>';
       }
     }
 
@@ -1385,27 +1638,62 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
         e.preventDefault();
         historyIdx = Math.min(history.length, historyIdx + 1);
         inp.value = historyIdx === history.length ? pendingInput : history[historyIdx];
-      } else if (e.key === 'Escape') {
-        if (modal.classList.contains('open')) closeSettings();
-        if (logPanel.classList.contains('open')) closeLog();
-        if ($('modal-script').classList.contains('open')) closeScript();
       }
+      // ESC 由全局 document.keydown 统一处理
     });
 
-    // Alt + 方向键 / Numpad 始终 = 行走（即使输入框非空）
+    // 单字母快捷键（输入框未聚焦时触发）
+    const KEY_BINDINGS = {
+      b: 'i',     i: 'i',     l: 'look',  m: 'map',
+      w: 'who',   s: 'score', h: 'hp',    x: 'exits',
+      f: 'fullme',q: 'quest', t: 'time'
+    };
+    function anyModalOpen() {
+      return modal.classList.contains('open')
+          || logPanel.classList.contains('open')
+          || $('modal-script').classList.contains('open');
+    }
+
+    // 全局键盘：Alt+方向 / NumPad 行走 / 单字母快捷键 / ESC
     document.addEventListener('keydown', e => {
-      // Alt + 方向键
+      // ESC：层层关 modal；都没开 → 打开设置
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (modal.classList.contains('open'))               return closeSettings();
+        if (logPanel.classList.contains('open'))            return closeLog();
+        if ($('modal-script').classList.contains('open'))   return closeScript();
+        return openSettings();
+      }
+      // Alt + 方向键 → 始终行走（不管输入框是否聚焦）
       if (e.altKey && ARROW_DIR[e.key]) {
         e.preventDefault();
-        walk(ARROW_DIR[e.key]);
-        return;
+        return walk(ARROW_DIR[e.key]);
       }
-      // 数字键盘（NumLock 关闭时）= 8 方位 + 5(look)
-      if (e.code && e.code.startsWith('Numpad') && document.activeElement !== inp) {
-        const map = { Numpad8:'n', Numpad2:'s', Numpad4:'w', Numpad6:'e',
-                      Numpad7:'nw', Numpad9:'ne', Numpad1:'sw', Numpad3:'se',
-                      Numpad5:'l', NumpadAdd:'u', NumpadSubtract:'d' };
-        if (map[e.code]) { e.preventDefault(); walk(map[e.code]); }
+      // 输入框聚焦时不再处理快捷键（让用户能正常输入字母）
+      if (document.activeElement === inp) return;
+      // 任何 modal 打开时也不处理（避免点击 modal 时按字母触发命令）
+      if (anyModalOpen()) return;
+      // NumPad 方位
+      if (e.code && e.code.startsWith('Numpad')) {
+        const m = { Numpad8:'n', Numpad2:'s', Numpad4:'w', Numpad6:'e',
+                    Numpad7:'nw', Numpad9:'ne', Numpad1:'sw', Numpad3:'se',
+                    Numpad5:'l', NumpadAdd:'u', NumpadSubtract:'d' };
+        if (m[e.code]) { e.preventDefault(); return walk(m[e.code]); }
+      }
+      // 单字母快捷键（非修饰键）
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+        const k = e.key.toLowerCase();
+        if (KEY_BINDINGS[k]) {
+          e.preventDefault();
+          return walk(KEY_BINDINGS[k]);
+        }
+        // 任何字母 → 把它放进输入框并聚焦（最常见的"开始打字"行为）
+        if (/^[a-z0-9/]$/.test(k)) {
+          inp.focus();
+          inp.value = e.key;
+          inp.setSelectionRange(inp.value.length, inp.value.length);
+          e.preventDefault();
+        }
       }
     });
 
@@ -1490,6 +1778,7 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     }
     setMinimap(prefs.get('minimap', '1') === '1');
     setCompass(prefs.get('compass', '0') === '1');
+    loadSettingsToForm();   // 表单初值
     const savedScript = prefs.get('script', '');
     if (savedScript) runUserScript(savedScript);
 
