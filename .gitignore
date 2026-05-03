@@ -4,3 +4,9 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# electron-builder 输出
+dist/
+out/
+*.exe
+release/

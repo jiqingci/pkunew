@@ -1,0 +1,2 @@
+# 把自定义应用图标放在此目录：build/icon.ico  (256x256，多分辨率 .ico)
+# 缺失时 electron-builder 会使用默认 Electron 图标。

@@ -1,16 +1,55 @@
 {
   "name": "pkuxkx-web-client",
+  "productName": "PKUXKX",
   "version": "1.0.0",
-  "description": "北大侠客行 (PKUXKX) MUD 的浏览器客户端 + WebSocket↔Telnet 桥接",
+  "description": "北大侠客行 (PKUXKX) MUD 浏览器/桌面客户端，支持 GBK + ANSI + MXP",
+  "main": "electron/main.js",
   "private": true,
   "scripts": {
-    "start": "node bridge.js"
+    "start": "node bridge.js",
+    "electron": "electron .",
+    "dist": "electron-builder --win portable",
+    "release": "electron-builder --win portable --publish always"
   },
   "dependencies": {
     "iconv-lite": "^0.6.3",
     "ws": "^8.18.0"
   },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "net.pkuxkx.client",
+    "productName": "PKUXKX",
+    "asar": true,
+    "files": [
+      "electron/**/*",
+      "index.html",
+      "bridge.js",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "win": {
+      "target": [{ "target": "portable", "arch": ["x64"] }],
+      "artifactName": "pkuxkx-${version}.${ext}",
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "pkuxkx-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "jiqingci",
+        "repo": "pkunew",
+        "releaseType": "release"
+      }
+    ]
+  },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   }
 }

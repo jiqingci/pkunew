@@ -432,7 +432,11 @@
       get(k, d) { try { return localStorage.getItem('xkx.' + k) ?? d; } catch (_) { return d; } },
       set(k, v) { try { localStorage.setItem('xkx.' + k, v); } catch (_) {} }
     };
-    $('server').value = prefs.get('server', 'ws://localhost:8765');
+    // 优先级：URL ?ws= 参数（Electron 注入）> localStorage 记忆值 > 默认值
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlWs   = urlParams.get('ws');
+    const urlAuto = urlParams.get('autoconnect') === '1';
+    $('server').value = urlWs || prefs.get('server', 'ws://localhost:8765');
     $('font-pref').value = prefs.get('font', '');
     if (prefs.get('theme', 'light') === 'dark') document.body.classList.add('dark');
     applyFont(prefs.get('font', ''));
@@ -786,12 +790,21 @@
       }
     });
 
-    // 启动文案
-    appendSystem('北大侠客行 · Web 客户端 已就绪 (mud.pkuxkx.net:8080 / GBK / MXP)');
-    appendSystem('需先运行本地桥接：node bridge.js   （默认 ws://localhost:8765 → mud.pkuxkx.net:8080）');
+    // 启动文案：浏览器 vs Electron 桌面
+    const inElectron = !!window.pkuxkx && window.pkuxkx.isElectron;
+    if (inElectron) {
+      appendSystem('北大侠客行 · 桌面客户端 已就绪 (内嵌桥接 → mud.pkuxkx.net:8080 / GBK / MXP)');
+      window.pkuxkx.getVersion().then(v => appendSystem('版本 v' + v + '；启动后将后台检查 GitHub 最新发布'));
+    } else {
+      appendSystem('北大侠客行 · Web 客户端 已就绪 (mud.pkuxkx.net:8080 / GBK / MXP)');
+      appendSystem('需先运行本地桥接：node bridge.js   （默认 ws://localhost:8765 → mud.pkuxkx.net:8080）');
+    }
     appendSystem('点击底部 【连】 开始游戏；MXP 协商成功后顶栏出现 [MXP]，红色链接可点击填入命令行');
     setStatus('disconnected', '未连接');
     inp.focus();
+
+    // Electron 注入了 ws 端口参数时，自动连接
+    if (urlAuto) setTimeout(connect, 200);
   })();
   </script>
 </body>
