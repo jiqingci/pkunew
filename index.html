@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>北大侠客行 Web 客户端</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #0e0e0e;
+      color: #d4d4d4;
+      font-family: Consolas, "Microsoft YaHei", "微软雅黑", "PingFang SC", monospace;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    #toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px;
+      background: #1f1f1f;
+      border-bottom: 1px solid #333;
+      align-items: center;
+    }
+    #toolbar input, #toolbar button, #toolbar select {
+      padding: 5px 10px;
+      background: #0e0e0e;
+      color: #d4d4d4;
+      border: 1px solid #555;
+      border-radius: 3px;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    #toolbar input { min-width: 240px; }
+    #toolbar button { cursor: pointer; user-select: none; }
+    #toolbar button:hover { background: #2d2d2d; border-color: #888; }
+    #status {
+      padding: 4px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-left: auto;
+    }
+    #status.connected    { background: #1d4d1d; color: #b6f5b6; }
+    #status.disconnected { background: #4d1d1d; color: #f5b6b6; }
+    #status.connecting   { background: #4d471d; color: #f5edb6; }
+    #output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      font-size: 14px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    #output::-webkit-scrollbar { width: 10px; }
+    #output::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
+    #output::-webkit-scrollbar-track { background: #1a1a1a; }
+    #input-area {
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      background: #1f1f1f;
+      border-top: 1px solid #333;
+    }
+    #input {
+      flex: 1;
+      padding: 8px 10px;
+      background: #0e0e0e;
+      color: #d4d4d4;
+      border: 1px solid #555;
+      border-radius: 3px;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+    }
+    #input:focus { border-color: #7aa2ff; }
+    #send-btn {
+      padding: 0 18px;
+      background: #2a4a7a;
+      color: #fff;
+      border: 1px solid #3b6ab0;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    #send-btn:hover { background: #3b6ab0; }
+    .system { color: #888; font-style: italic; }
+    .echo   { color: #6b9bd1; }
+    .error  { color: #f55; }
+
+    /* ANSI 前景色（普通） */
+    .fg30 { color: #2e2e2e; } .fg31 { color: #cd3131; }
+    .fg32 { color: #0dbc79; } .fg33 { color: #c3a000; }
+    .fg34 { color: #2472c8; } .fg35 { color: #bc3fbc; }
+    .fg36 { color: #11a8cd; } .fg37 { color: #cccccc; }
+    /* ANSI 前景色（高亮 / bold） */
+    .bfg30 { color: #666666; } .bfg31 { color: #ff6b6b; }
+    .bfg32 { color: #4ee06b; } .bfg33 { color: #f5e542; }
+    .bfg34 { color: #5ca7ff; } .bfg35 { color: #ff66ff; }
+    .bfg36 { color: #4ee0e0; } .bfg37 { color: #ffffff; }
+    /* ANSI 背景色 */
+    .bg40 { background: #000; }    .bg41 { background: #800000; }
+    .bg42 { background: #007a00; } .bg43 { background: #807a00; }
+    .bg44 { background: #00007a; } .bg45 { background: #7a007a; }
+    .bg46 { background: #007a7a; } .bg47 { background: #aaaaaa; }
+
+    .bold { font-weight: bold; }
+    .underline { text-decoration: underline; }
+    .blink { animation: blink 1s steps(2, start) infinite; }
+    @keyframes blink { to { visibility: hidden; } }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <label>桥接地址：</label>
+    <input id="server" type="text" value="ws://localhost:8765" placeholder="WebSocket 地址">
+    <button id="connect-btn">连接</button>
+    <button id="disconnect-btn">断开</button>
+    <button id="clear-btn">清屏</button>
+    <span id="status" class="disconnected">未连接</span>
+  </div>
+  <div id="output"></div>
+  <div id="input-area">
+    <input id="input" type="text" autocomplete="off" spellcheck="false"
+           placeholder="输入命令并回车（↑/↓ 浏览历史；多行命令用 ; 分隔）">
+    <button id="send-btn">发送</button>
+  </div>
+
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const out = $('output'), inp = $('input'), status = $('status');
+
+    let ws = null;
+    const history = [];
+    let historyIdx = -1;
+    let pendingInput = '';
+
+    // 持久化：记住上次的桥接地址
+    const savedServer = localStorage.getItem('pkuxkx.server');
+    if (savedServer) $('server').value = savedServer;
+
+    function setStatus(state, text) {
+      status.className = state;
+      status.textContent = text;
+    }
+
+    function append(html) {
+      const atBottom = out.scrollTop + out.clientHeight >= out.scrollHeight - 20;
+      out.insertAdjacentHTML('beforeend', html);
+      if (atBottom) out.scrollTop = out.scrollHeight;
+    }
+
+    function appendSystem(text) {
+      const esc = escapeHtml(text);
+      append(`<div class="system">[系统] ${esc}</div>`);
+    }
+
+    function appendEcho(text) {
+      append(`<div class="echo">&gt; ${escapeHtml(text)}</div>`);
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    }
+
+    // —— ANSI 解析 ——
+    // 状态在多次调用间保留：MUD 一次输出常被拆成多个 WebSocket 消息
+    const ansi = { bold: false, fg: null, bg: null, underline: false, blink: false };
+
+    function ansiClasses() {
+      const cls = [];
+      if (ansi.fg !== null) cls.push((ansi.bold ? 'bfg' : 'fg') + ansi.fg);
+      else if (ansi.bold)   cls.push('bold');
+      if (ansi.bg !== null) cls.push('bg' + ansi.bg);
+      if (ansi.underline)   cls.push('underline');
+      if (ansi.blink)       cls.push('blink');
+      return cls;
+    }
+
+    function applyCodes(codes) {
+      if (codes.length === 0) codes = [0];
+      for (const code of codes) {
+        if (code === 0) { ansi.bold = false; ansi.fg = null; ansi.bg = null;
+                          ansi.underline = false; ansi.blink = false; }
+        else if (code === 1) ansi.bold = true;
+        else if (code === 4) ansi.underline = true;
+        else if (code === 5) ansi.blink = true;
+        else if (code === 22) ansi.bold = false;
+        else if (code === 24) ansi.underline = false;
+        else if (code === 25) ansi.blink = false;
+        else if (code === 39) ansi.fg = null;
+        else if (code === 49) ansi.bg = null;
+        else if (code >= 30 && code <= 37) ansi.fg = code;
+        else if (code >= 40 && code <= 47) ansi.bg = code;
+        else if (code >= 90 && code <= 97) { ansi.fg = code - 60; ansi.bold = true; }
+      }
+    }
+
+    let textBuffer = '';
+
+    function renderChunk(text) {
+      // 处理 \r\n 与裸 \r
+      text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      // 拆分 ANSI 转义序列
+      let html = '';
+      const re = /\x1b\[([0-9;]*)([A-Za-z])/g;
+      let last = 0, m;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) {
+          html += wrap(text.slice(last, m.index));
+        }
+        if (m[2] === 'm') {
+          const codes = m[1].length ? m[1].split(';').map(n => parseInt(n, 10) || 0) : [0];
+          applyCodes(codes);
+        }
+        // 其余 CSI（光标移动等）忽略
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) html += wrap(text.slice(last));
+      append(html);
+    }
+
+    function wrap(text) {
+      if (!text) return '';
+      const esc = escapeHtml(text);
+      const cls = ansiClasses();
+      return cls.length ? `<span class="${cls.join(' ')}">${esc}</span>` : esc;
+    }
+
+    // —— 连接与发送 ——
+    function connect() {
+      const url = $('server').value.trim();
+      if (!url) { appendSystem('请填写 WebSocket 地址'); return; }
+      if (ws && ws.readyState <= 1) { appendSystem('已经连接，无需重复连接'); return; }
+      localStorage.setItem('pkuxkx.server', url);
+      setStatus('connecting', '连接中…');
+      appendSystem('正在连接 ' + url);
+      try {
+        ws = new WebSocket(url);
+      } catch (e) {
+        setStatus('disconnected', '未连接');
+        appendSystem('连接失败：' + e.message);
+        return;
+      }
+      ws.binaryType = 'arraybuffer';
+      ws.onopen = () => {
+        setStatus('connected', '已连接');
+        appendSystem('连接成功');
+        inp.focus();
+      };
+      ws.onmessage = (ev) => {
+        let data = ev.data;
+        if (data instanceof ArrayBuffer) {
+          // 桥接若发送二进制（UTF-8 字节）
+          data = new TextDecoder('utf-8').decode(new Uint8Array(data));
+        }
+        renderChunk(data);
+      };
+      ws.onerror = () => {
+        appendSystem('WebSocket 出现错误（可能是地址不可达或桥接未启动）');
+      };
+      ws.onclose = (ev) => {
+        setStatus('disconnected', '未连接');
+        appendSystem('连接已关闭' + (ev.code ? `（code=${ev.code}）` : ''));
+      };
+    }
+
+    function disconnect() {
+      if (ws) { ws.close(); ws = null; }
+    }
+
+    function send(line) {
+      if (!ws || ws.readyState !== 1) {
+        appendSystem('尚未连接到服务器');
+        return;
+      }
+      ws.send(line + '\n');
+    }
+
+    function submit() {
+      const raw = inp.value;
+      if (!raw) { send(''); return; }
+      // 历史记录
+      if (history[history.length - 1] !== raw) history.push(raw);
+      historyIdx = history.length;
+      // 多命令分号拆分
+      const parts = raw.split(';').map(s => s.trim()).filter(s => s.length);
+      for (const cmd of parts) {
+        appendEcho(cmd);
+        send(cmd);
+      }
+      if (parts.length === 0) { appendEcho(''); send(''); }
+      inp.value = '';
+      pendingInput = '';
+    }
+
+    // —— 事件绑定 ——
+    $('connect-btn').addEventListener('click', connect);
+    $('disconnect-btn').addEventListener('click', disconnect);
+    $('clear-btn').addEventListener('click', () => { out.innerHTML = ''; });
+    $('send-btn').addEventListener('click', () => { submit(); inp.focus(); });
+
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submit();
+      } else if (e.key === 'ArrowUp') {
+        if (history.length === 0) return;
+        e.preventDefault();
+        if (historyIdx === history.length) pendingInput = inp.value;
+        historyIdx = Math.max(0, historyIdx - 1);
+        inp.value = history[historyIdx];
+        setTimeout(() => inp.setSelectionRange(inp.value.length, inp.value.length), 0);
+      } else if (e.key === 'ArrowDown') {
+        if (history.length === 0) return;
+        e.preventDefault();
+        historyIdx = Math.min(history.length, historyIdx + 1);
+        inp.value = historyIdx === history.length ? pendingInput : history[historyIdx];
+      }
+    });
+
+    // 启动提示
+    appendSystem('北大侠客行 Web 客户端已就绪');
+    appendSystem('需先运行本地桥接：node bridge.js（默认端口 8765 → mud.pkuxkx.net:8081）');
+    appendSystem('点击「连接」开始游戏。');
+    inp.focus();
+  })();
+  </script>
+</body>
+</html>
