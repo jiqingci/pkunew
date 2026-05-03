@@ -26,8 +26,8 @@ function makeCodec(charset) {
 // Telnet 协议常量
 const IAC  = 0xFF, DONT = 0xFE, DO = 0xFD, WONT = 0xFC, WILL = 0xFB;
 const SB   = 0xFA, SE   = 0xF0;
-// Telnet 选项：MXP=91, TTYPE=24, NAWS=31
-const OPT_MXP = 91, OPT_TTYPE = 24, OPT_NAWS = 31;
+// Telnet 选项：MXP=91, TTYPE=24, NAWS=31, GMCP=201
+const OPT_MXP = 91, OPT_TTYPE = 24, OPT_NAWS = 31, OPT_GMCP = 201;
 // TTYPE 子协商：IS=0, SEND=1
 const TTYPE_IS = 0, TTYPE_SEND = 1;
 
@@ -43,13 +43,15 @@ function optName(b)  { return OPTION_NAMES[b] || ('OPT_' + b); }
 function cmdName(b)  { return b === WILL ? 'WILL' : b === WONT ? 'WONT'
                             : b === DO   ? 'DO'   : b === DONT ? 'DONT' : 'CMD_' + b; }
 
-// 解析并剥离 Telnet IAC 序列；接受 MXP / TTYPE / NAWS，其它选项一律拒绝。
-// PKUXKX 在 8080 上根据 TTYPE 决定是否启用 MXP——拒绝 TTYPE 会导致 DONT MXP。
+// 解析并剥离 Telnet IAC 序列；接受 MXP / TTYPE / NAWS / GMCP，其它选项一律拒绝。
+// PKUXKX 在 8080 上根据 TTYPE 决定是否启用 MXP；GMCP 给现代客户端推结构化数据。
 // onTelnetEvent({dir, desc}) — 协商动作通知
 // onSubneg(Buffer)  — 子协商内容（去除外层 IAC SB...IAC SE，含选项码与负载）
-function makeTelnetStripper(replyBack, onMxpEnabled, onTelnetEvent, onSubneg) {
+// onOptionEnabled(optCode) — 协商成功后通知（MXP/GMCP 用于触发后续动作）
+function makeTelnetStripper(replyBack, onTelnetEvent, onSubneg, onOptionEnabled) {
   const ctx = { state: 0, cmd: 0, sb: [] };
   const evt = onTelnetEvent || (() => {});
+  const enabled = onOptionEnabled || (() => {});
   return function strip(buf) {
     const out = [];
     for (let i = 0; i < buf.length; i++) {
@@ -68,27 +70,26 @@ function makeTelnetStripper(replyBack, onMxpEnabled, onTelnetEvent, onSubneg) {
         case 2: {
           evt({ dir: 'recv', desc: `IAC ${cmdName(ctx.cmd)} ${optName(b)}` });
           if (ctx.cmd === WILL) {
-            // 服务器愿意做 X
-            if (b === OPT_MXP) {
+            // 服务器愿意做 X：MXP / GMCP 都接受
+            if (b === OPT_MXP || b === OPT_GMCP) {
               replyBack(Buffer.from([IAC, DO, b]));
               evt({ dir: 'send', desc: `IAC DO ${optName(b)}` });
-              onMxpEnabled && onMxpEnabled();
+              enabled(b);
             } else {
               replyBack(Buffer.from([IAC, DONT, b]));
               evt({ dir: 'send', desc: `IAC DONT ${optName(b)}` });
             }
           } else if (ctx.cmd === DO) {
-            // 服务器希望我们做 X：MXP / TTYPE / NAWS 都接受
-            if (b === OPT_MXP || b === OPT_TTYPE || b === OPT_NAWS) {
+            // 服务器希望我们做 X：MXP / TTYPE / NAWS / GMCP 都接受
+            if (b === OPT_MXP || b === OPT_TTYPE || b === OPT_NAWS || b === OPT_GMCP) {
               replyBack(Buffer.from([IAC, WILL, b]));
               evt({ dir: 'send', desc: `IAC WILL ${optName(b)}` });
-              if (b === OPT_MXP) onMxpEnabled && onMxpEnabled();
               if (b === OPT_NAWS) {
-                // NAWS 启用后立即发一次窗口大小（80x24，写死即可，桥接不知道终端实际尺寸）
                 const naws = Buffer.from([IAC, SB, OPT_NAWS, 0, 80, 0, 24, IAC, SE]);
                 replyBack(naws);
                 evt({ dir: 'send', desc: 'IAC SB NAWS 80x24 IAC SE' });
               }
+              if (b === OPT_MXP || b === OPT_GMCP) enabled(b);
             } else {
               replyBack(Buffer.from([IAC, WONT, b]));
               evt({ dir: 'send', desc: `IAC WONT ${optName(b)}` });
@@ -160,17 +161,32 @@ function startBridge(opts = {}) {
     sendMeta({ type: 'event', kind: 'tcp', desc: '编码 ' + codec.name, ts: Date.now() });
 
     const tcp = net.createConnection({ host: MUD_HOST, port: MUD_PORT });
-    // PKUXKX 通过 TTYPE 识别客户端：报告 "Mudlet" 让服务器认为我们是支持 MXP 的客户端
+    // PKUXKX 通过 TTYPE 识别客户端：报告 "Mudlet" 让服务器认为是现代客户端（启用 MXP/GMCP）
     // RFC 1091 的 TTYPE cycle：服务器多次 SEND，客户端依次回 IS "Mudlet" / "ANSI-256COLOR" / "MTTS 13"
     const TTYPE_LIST = ['Mudlet', 'ANSI-256COLOR', 'MTTS 13'];
     let ttypeIdx = 0;
+
+    // GMCP 发送辅助：IAC SB GMCP <package> SP <json> IAC SE
+    function sendGmcp(pkg, data) {
+      const json = (data === undefined) ? '' : JSON.stringify(data);
+      const payload = json ? (pkg + ' ' + json) : pkg;
+      const out = Buffer.concat([
+        Buffer.from([IAC, SB, OPT_GMCP]),
+        Buffer.from(payload, 'utf8'),
+        Buffer.from([IAC, SE])
+      ]);
+      try { tcp.write(out); } catch (_) {}
+      sendMeta({ type: 'telnet', dir: 'send',
+                 desc: `IAC SB GMCP ${pkg}${json ? ' ' + json.slice(0, 80) : ''} IAC SE`, ts: Date.now() });
+    }
+
     const stripper = makeTelnetStripper(
       b => { try { tcp.write(b); } catch (_) {} },
-      () => { log(`${peer} 已协商 MXP`); sendMeta({ type: 'event', kind: 'mxp', desc: 'MXP 已协商成功' }); },
       ev => { sendMeta({ type: 'telnet', dir: ev.dir, desc: ev.desc, ts: Date.now() }); },
       sb => {
-        // 子协商：sb[0] = 选项码；TTYPE SEND（24,1）→ 回 IS <name>
+        // 子协商：sb[0] = 选项码
         if (sb.length >= 2 && sb[0] === OPT_TTYPE && sb[1] === TTYPE_SEND) {
+          // TTYPE cycle
           const isFirst = ttypeIdx === 0;
           const name = TTYPE_LIST[Math.min(ttypeIdx, TTYPE_LIST.length - 1)];
           if (ttypeIdx < TTYPE_LIST.length - 1) ttypeIdx++;
@@ -181,11 +197,37 @@ function startBridge(opts = {}) {
           ]);
           try { tcp.write(reply); } catch (_) {}
           sendMeta({ type: 'telnet', dir: 'send', desc: `IAC SB TTYPE IS "${name}" IAC SE`, ts: Date.now() });
-          // 第一次报 TTYPE="Mudlet" 后立即 announce MXP，服务器据此 DO MXP
           if (isFirst) {
             try { tcp.write(Buffer.from([IAC, WILL, OPT_MXP])); } catch (_) {}
             sendMeta({ type: 'telnet', dir: 'send', desc: 'IAC WILL MXP (报 TTYPE 后)', ts: Date.now() });
           }
+        } else if (sb.length >= 1 && sb[0] === OPT_GMCP) {
+          // GMCP: 选项码后是 "package SP json" 文本
+          const txt = sb.slice(1).toString('utf8');
+          const sepIdx = txt.indexOf(' ');
+          let pkg, jsonStr;
+          if (sepIdx >= 0) { pkg = txt.slice(0, sepIdx); jsonStr = txt.slice(sepIdx + 1); }
+          else { pkg = txt; jsonStr = ''; }
+          let parsed = jsonStr;
+          try { if (jsonStr.length) parsed = JSON.parse(jsonStr); } catch (_) {}
+          sendMeta({ type: 'gmcp', package: pkg, data: parsed, raw: jsonStr, ts: Date.now() });
+        }
+      },
+      opt => {
+        // 协商成功通知
+        if (opt === OPT_MXP) {
+          log(`${peer} 已协商 MXP`);
+          sendMeta({ type: 'event', kind: 'mxp', desc: 'MXP 已协商成功', ts: Date.now() });
+        } else if (opt === OPT_GMCP) {
+          log(`${peer} 已协商 GMCP`);
+          sendMeta({ type: 'event', kind: 'gmcp', desc: 'GMCP 已协商成功', ts: Date.now() });
+          // GMCP 标准握手：客户端 announce 自己 + 订阅常用包
+          sendGmcp('Core.Hello', { client: 'PKUXKX-Web', version: '1.0' });
+          sendGmcp('Core.Supports.Set', [
+            'Char 1', 'Char.Vitals 1', 'Char.Status 1',
+            'Room 1', 'Room.Info 1',
+            'Comm 1', 'Comm.Channel 1'
+          ]);
         }
       }
     );

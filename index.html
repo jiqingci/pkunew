@@ -307,6 +307,124 @@
     .dark #status-panel { color: #aaa; background-color: rgba(255,255,255,0.05); }
     @media (max-width: 800px) { #status-panel { display: none !important; } }
 
+    /* —— 左侧小地图 + 状态面板 —— */
+    #minimap {
+      position: fixed;
+      left: 12px;
+      top: 36px;
+      bottom: 86px;
+      width: 240px;
+      background: rgba(255,255,255,0.97);
+      border: 1px solid #ddd;
+      padding: 12px 14px;
+      font-family: Kaiti, "Noto Sans SC", sans-serif;
+      font-size: 11pt;
+      overflow-y: auto;
+      z-index: 4;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      border-radius: 3px;
+      transition: background 0.6s, border-color 0.6s;
+      display: none;
+    }
+    .dark #minimap { background: rgba(15,15,15,0.96); border-color: #2a2a2a; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+    #minimap.show { display: block; }
+    @media (max-width: 800px) { #minimap { display: none !important; } }
+    body.has-minimap .container { padding-left: 270px; }
+    body.has-minimap .input-row { padding-left: 0; }
+    #mm-room { font-size: 13pt; font-weight: 700; color: #D50303; margin-bottom: 2px; }
+    .dark #mm-room { color: #cc8f1a; }
+    #mm-area { color: #888; font-size: 10pt; margin-bottom: 10px; }
+    #mm-section-title { color: #515C6B; font-size: 10pt; font-weight: 700; margin: 10px 0 4px; border-bottom: 1px dashed #ddd; padding-bottom: 2px; }
+    .dark #mm-section-title { color: #888; border-bottom-color: #333; }
+    #mm-exits { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+    #mm-exits a {
+      display: inline-block;
+      padding: 3px 8px;
+      background: rgba(213, 3, 3, 0.06);
+      color: #D50303;
+      border: 1px solid rgba(213, 3, 3, 0.2);
+      border-radius: 3px;
+      font-size: 10pt;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: Consolas, monospace;
+      font-weight: 700;
+    }
+    #mm-exits a:hover { background: #D50303; color: #fff; }
+    .dark #mm-exits a { background: rgba(204, 143, 26, 0.12); color: #cc8f1a; border-color: rgba(204, 143, 26, 0.3); }
+    .dark #mm-exits a:hover { background: #cc8f1a; color: #000; }
+    #mm-vitals { font-size: 11pt; line-height: 1.5; }
+    #mm-vitals .row { display: flex; justify-content: space-between; padding: 1px 0; }
+    #mm-vitals .name { color: #888; font-size: 10pt; }
+    #mm-vitals .val  { font-weight: 700; }
+    #mm-vitals .bar  { height: 4px; background: #eee; border-radius: 2px; overflow: hidden; margin: 2px 0 4px; }
+    .dark #mm-vitals .bar { background: #222; }
+    #mm-vitals .bar > div { height: 100%; background: #2a7a2a; transition: width 0.3s; }
+    #mm-vitals .bar.low > div { background: #D50303; }
+
+    /* —— 方向键浮窗（PKUXKX 18 方位罗盘） —— */
+    #compass {
+      position: fixed;
+      right: 12px;
+      bottom: 90px;
+      display: none;
+      grid-template-columns: repeat(5, 36px);
+      gap: 3px;
+      padding: 8px;
+      background: rgba(255,255,255,0.97);
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      z-index: 4;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .dark #compass { background: rgba(15,15,15,0.97); border-color: #2a2a2a; }
+    #compass.show { display: grid; }
+    #compass a {
+      display: flex; align-items: center; justify-content: center;
+      height: 28px;
+      background: rgba(213, 3, 3, 0.06);
+      color: #D50303;
+      border: 1px solid rgba(213, 3, 3, 0.15);
+      border-radius: 3px;
+      font-family: Consolas, monospace;
+      font-size: 9pt;
+      cursor: pointer;
+      text-decoration: none;
+      user-select: none;
+    }
+    #compass a:hover { background: #D50303; color: #fff; }
+    #compass a.empty { background: transparent; border: none; cursor: default; }
+    #compass a.center { background: rgba(0,0,0,0.04); color: #888; border-color: rgba(0,0,0,0.1); }
+    .dark #compass a { background: rgba(204, 143, 26, 0.12); color: #cc8f1a; border-color: rgba(204, 143, 26, 0.2); }
+    .dark #compass a:hover { background: #cc8f1a; color: #000; }
+    .dark #compass a.center { background: rgba(255,255,255,0.04); color: #888; }
+
+    /* —— 脚本面板 —— */
+    #script-text {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 320px;
+      padding: 10px;
+      font-family: Consolas, "Cascadia Code", monospace;
+      font-size: 12pt;
+      background: rgba(0,0,0,0.025);
+      color: #151515;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      resize: vertical;
+      outline: none;
+    }
+    .dark #script-text { background: rgba(255,255,255,0.04); color: #e0e0e0; border-color: #333; }
+    #script-status {
+      font-family: Consolas, monospace;
+      font-size: 10pt;
+      padding: 6px 0;
+      color: #888;
+      min-height: 18px;
+    }
+    #script-status.error { color: #D50303; }
+    #script-status.ok    { color: #2a7a2a; }
+
     /* —— ANSI 16 色（白底素雅版） —— */
     .fg30 { color: #2e2e2e; } .fg31 { color: #b22222; }
     .fg32 { color: #2a7a2a; } .fg33 { color: #a07820; }
@@ -419,10 +537,12 @@
     .log-row.send .dir { color: #D50303; }
     .log-row.telnet { color: #2070d0; }
     .log-row.event  { color: #888; font-style: italic; }
+    .log-row.gmcp   { color: #8a3a8a; }
     .dark .log-row.recv .dir { color: #4ee06b; }
     .dark .log-row.send .dir { color: #ff8585; }
     .dark .log-row.telnet     { color: #5ca7ff; }
     .dark .log-row.event      { color: #777; }
+    .dark .log-row.gmcp       { color: #d670d6; }
 
     /* MXP 协商成功后顶栏的小指示 */
     #mxp-indicator {
@@ -447,6 +567,23 @@
 
   <div id="status-panel"></div>
 
+  <div id="minimap">
+    <div id="mm-room">未连接</div>
+    <div id="mm-area">--</div>
+    <div id="mm-section-title">出口</div>
+    <div id="mm-exits"><span style="color:#aaa;font-size:10pt">尚无</span></div>
+    <div id="mm-section-title">状态</div>
+    <div id="mm-vitals"><span style="color:#aaa;font-size:10pt">等待 GMCP 数据…</span></div>
+  </div>
+
+  <div id="compass">
+    <a class="empty"></a><a data-dir="nw">↖</a><a data-dir="n">↑</a><a data-dir="ne">↗</a><a class="empty"></a>
+    <a data-dir="u">U</a><a class="empty"></a><a class="center">·</a><a class="empty"></a><a data-dir="d">D</a>
+    <a class="empty"></a><a data-dir="w">←</a><a data-dir="l">L</a><a data-dir="e">→</a><a class="empty"></a>
+    <a class="empty"></a><a data-dir="sw">↙</a><a data-dir="s">↓</a><a data-dir="se">↘</a><a class="empty"></a>
+    <a data-dir="in">in</a><a data-dir="out">out</a><a data-dir="enter">enter</a><a data-dir="exit">exit</a><a class="empty"></a>
+  </div>
+
   <div class="outerContainer" id="scroller">
     <div class="container">
       <div id="story"></div>
@@ -468,6 +605,9 @@
       <a id="nav-who"   data-cmd="who">【众】</a>
       <a id="nav-clear">【清】</a>
       <a id="nav-log">【志】</a>
+      <a id="nav-map" title="左侧小地图">【图】</a>
+      <a id="nav-compass" title="方向罗盘">【罗】</a>
+      <a id="nav-script" title="JS 脚本">【脚】</a>
       <a id="nav-theme">【夜】</a>
       <a id="nav-settings">【设】</a>
     </div>
@@ -485,6 +625,34 @@
     <div id="log-list"></div>
     <div class="modal-actions">
       <a id="log-close" class="muted">【闭】</a>
+    </div>
+  </div>
+  <div class="modal modal-large" id="modal-script">
+    <h2>J S  脚 本</h2>
+    <div class="log-actions">
+      <span style="color:#888;font-size:10pt">
+        可用 API：<code>pkx.send(cmd)</code> · <code>pkx.print(html)</code> ·
+        <code>pkx.on('data'|'sent'|'gmcp', cb)</code> ·
+        <code>pkx.match(re, cb)</code> · <code>pkx.set/get(k,v)</code> ·
+        <code>pkx.title(s)</code>
+      </span>
+    </div>
+    <textarea id="script-text" spellcheck="false" placeholder="// 示例：从 GMCP Char.Vitals 中显示 HP
+pkx.on('gmcp', (pkg, data) => {
+  if (pkg === 'Char.Vitals') {
+    pkx.title('HP ' + data.hp + '/' + data.max_hp);
+  }
+});
+
+// 示例：用正则匹配主屏文本，提示低血
+pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
+  if (parseInt(m[1]) < 50) pkx.print('&lt;span style=color:red&gt;⚠ 体力低！&lt;/span&gt;');
+});"></textarea>
+    <div id="script-status">未启用脚本</div>
+    <div class="modal-actions">
+      <a id="script-save">【应用】</a>
+      <a id="script-clear" class="muted">【清空】</a>
+      <a id="script-close" class="muted">【闭】</a>
     </div>
   </div>
   <div class="modal" id="modal-settings">
@@ -790,23 +958,19 @@
         inp.focus();
       };
       ws.onmessage = ev => {
-        // 二进制 ws 消息 = 桥接发的元数据 (JSON)；文本 ws 消息 = MUD 数据
         if (ev.data instanceof ArrayBuffer) {
           let metaText = '';
           try { metaText = new TextDecoder('utf-8').decode(new Uint8Array(ev.data)); } catch (_) {}
-          // 元数据 JSON：尝试解析；解析失败回落当作文本数据
-          try {
-            const meta = JSON.parse(metaText);
-            handleMeta(meta);
-            return;
-          } catch (_) { /* 非 JSON，按文本处理 */ }
+          try { handleMeta(JSON.parse(metaText)); return; } catch (_) {}
           pushLog({ dir: 'recv', kind: 'data', text: metaText });
           renderChunk(metaText);
+          fireData(metaText);
           return;
         }
         const text = String(ev.data);
         pushLog({ dir: 'recv', kind: 'data', text });
         renderChunk(text);
+        fireData(text);
       };
       ws.onerror = () => {
         appendSystem('WebSocket 出现错误（地址不可达或桥接未启动？）');
@@ -824,6 +988,7 @@
       const out = line + '\n';
       ws.send(out);
       pushLog({ dir: 'send', kind: 'data', text: out });
+      fireSent(line);
     }
     function submit() {
       const raw = inp.value;
@@ -858,13 +1023,25 @@
       if (logPanel.classList.contains('open')) renderLogIncremental(entry);
       updateLogStats();
     }
-    // 桥接发来的元数据：{type:'telnet'|'event', dir, kind, desc, ts}
+    // 桥接发来的元数据：{type:'telnet'|'event'|'gmcp', ...}
     function handleMeta(meta) {
       if (!meta || !meta.type) return;
       if (meta.type === 'event' && meta.kind === 'mxp') {
-        // 桥接通报 MXP 协商成功
         mxp.enabled = true;
         $('mxp-indicator').classList.add('on');
+      }
+      if (meta.type === 'gmcp') {
+        // GMCP 数据：写入日志、更新小地图、触发用户脚本
+        const dataDesc = typeof meta.data === 'object' ? JSON.stringify(meta.data) : String(meta.data || '');
+        pushLog({
+          ts: meta.ts || Date.now(),
+          dir: 'recv',
+          kind: 'gmcp',
+          desc: meta.package + (dataDesc ? ' ' + dataDesc : '')
+        });
+        try { handleGmcp(meta.package, meta.data); } catch (_) {}
+        try { fireGmcp(meta.package, meta.data); } catch (_) {}
+        return;
       }
       pushLog({
         ts: meta.ts || Date.now(),
@@ -934,6 +1111,170 @@
         const body = e.kind === 'data' ? JSON.stringify(e.text) : (e.desc || '');
         return `${ts} ${dir} [${e.kind || ''}] ${body}`;
       }).join('\n');
+    }
+
+    // —— PKUXKX 全方向集（含 1-3 字符立体组合） —— //
+    const DIRECTIONS = new Set([
+      'n','s','e','w','ne','nw','se','sw','u','d',
+      'nu','nd','su','sd','eu','ed','wu','wd',
+      'neu','ned','nwu','nwd','seu','sed','swu','swd',
+      'nud','sud','eud','wud','neud','nwud','seud','swud',
+      'in','out','enter','exit','l','look'
+    ]);
+    function isDirection(s) { return DIRECTIONS.has(s.toLowerCase().trim()); }
+
+    // 方向键 → 命令映射（输入框为空时触发）
+    const ARROW_DIR = { ArrowUp: 'n', ArrowDown: 's', ArrowLeft: 'w', ArrowRight: 'e' };
+
+    function walk(dir) {
+      // 走路：进 history，回显，发送
+      if (history[history.length - 1] !== dir) history.push(dir);
+      historyIdx = history.length;
+      appendEcho(dir);
+      send(dir);
+    }
+
+    // —— 小地图 / 状态 —— //
+    const room = { name: '', area: '', exits: [] };
+    const vitals = {};
+    function updateMinimap() {
+      $('mm-room').textContent = room.name || '未知房间';
+      $('mm-area').textContent = room.area || '--';
+      const exitsEl = $('mm-exits');
+      if (!room.exits.length) {
+        exitsEl.innerHTML = '<span style="color:#aaa;font-size:10pt">尚无</span>';
+      } else {
+        exitsEl.innerHTML = room.exits.map(e =>
+          `<a data-dir="${escapeAttr(e)}" title="点击走 ${escapeAttr(e)}">${escapeHtml(e)}</a>`
+        ).join('');
+      }
+    }
+    function updateVitals() {
+      const el = $('mm-vitals');
+      const keys = Object.keys(vitals);
+      if (!keys.length) {
+        el.innerHTML = '<span style="color:#aaa;font-size:10pt">等待 GMCP 数据…</span>';
+        return;
+      }
+      // 优先识别 hp/max_hp、kee/max_kee 等成对数据，画进度条
+      const pairs = [
+        ['hp', 'max_hp', 'HP'], ['mp', 'max_mp', 'MP'],
+        ['kee', 'max_kee', '气'], ['sen', 'max_sen', '神'],
+        ['food', 'max_food', '食'], ['water', 'max_water', '水']
+      ];
+      const seen = new Set();
+      let html = '';
+      for (const [a, b, label] of pairs) {
+        if (vitals[a] != null && vitals[b] != null) {
+          const cur = +vitals[a], max = +vitals[b];
+          const pct = max > 0 ? Math.max(0, Math.min(100, cur / max * 100)) : 0;
+          const lowCls = pct < 30 ? ' low' : '';
+          html += `<div class="row"><span class="name">${label}</span><span class="val">${cur}/${max}</span></div>`;
+          html += `<div class="bar${lowCls}"><div style="width:${pct.toFixed(1)}%"></div></div>`;
+          seen.add(a); seen.add(b);
+        }
+      }
+      // 其它字段平铺显示
+      for (const k of keys) {
+        if (seen.has(k)) continue;
+        if (typeof vitals[k] === 'object') continue;
+        html += `<div class="row"><span class="name">${escapeHtml(k)}</span><span class="val">${escapeHtml(String(vitals[k]))}</span></div>`;
+      }
+      el.innerHTML = html;
+    }
+
+    // PKUXKX 出口正则（fallback，文本里有「明显的(出口|方向)有 ... 。」）
+    const EXIT_RE = /这里明显的(?:出口|方向)有\s*([^\n。]+)。/;
+    const ROOM_RE = /^\s*([^\s\[]{1,20})\s*-\s*\[/;
+    function tryParseExitsFromText(text) {
+      const plain = text.replace(/\x1b\[[0-9;]*m/g, '');
+      const m = EXIT_RE.exec(plain);
+      if (!m) return null;
+      // 出口段："up 和 west" / "southeast、east、west、north 和 south"
+      return m[1].split(/[、,，]|\s+和\s+|\s+/).map(s => s.trim()).filter(s => s.length && s.length < 20);
+    }
+    function tryParseRoomFromText(text) {
+      const plain = text.replace(/\x1b\[[0-9;]*m/g, '');
+      for (const line of plain.split('\n')) {
+        const m = ROOM_RE.exec(line);
+        if (m) return m[1].trim();
+      }
+      return null;
+    }
+
+    // GMCP 数据处理：根据 package 名分发
+    function handleGmcp(pkg, data) {
+      const lower = String(pkg).toLowerCase();
+      if (lower === 'room.info' || lower === 'room') {
+        if (data && typeof data === 'object') {
+          if (data.name)  room.name = data.name;
+          if (data.area)  room.area = data.area;
+          if (data.zone)  room.area = data.zone;
+          if (Array.isArray(data.exits)) room.exits = data.exits;
+          else if (data.exits && typeof data.exits === 'object') room.exits = Object.keys(data.exits);
+          updateMinimap();
+        }
+      } else if (lower === 'char.vitals' || lower === 'char.status') {
+        if (data && typeof data === 'object') {
+          Object.assign(vitals, data);
+          updateVitals();
+        }
+      }
+    }
+
+    // —— JS 用户脚本：暴露 pkx API；事件钩子 —— //
+    const scriptHooks = { data: [], sent: [], gmcp: [], match: [] };
+    const pkx = {
+      send: (cmd) => { appendEcho(cmd); send(cmd); },
+      print: (html) => append('<span class="user">' + html + '</span>'),
+      on: (evt, cb) => { if (scriptHooks[evt]) scriptHooks[evt].push(cb); },
+      match: (re, cb) => { scriptHooks.match.push({ re, cb }); },
+      set: (k, v) => prefs.set('user.' + k, typeof v === 'string' ? v : JSON.stringify(v)),
+      get: (k) => { const v = prefs.get('user.' + k); try { return JSON.parse(v); } catch (_) { return v; } },
+      title: (s) => { document.title = s; },
+      vitals,
+      room
+    };
+    function clearHooks() {
+      scriptHooks.data.length = 0;
+      scriptHooks.sent.length = 0;
+      scriptHooks.gmcp.length = 0;
+      scriptHooks.match.length = 0;
+    }
+    function fireData(text) {
+      scriptHooks.data.forEach(cb => { try { cb(text); } catch (e) { console.error('script.data:', e); } });
+      // 主屏文本里提取出口与房间名（GMCP 不可用时的 fallback）
+      const exits = tryParseExitsFromText(text);
+      if (exits) { room.exits = exits; updateMinimap(); }
+      const rname = tryParseRoomFromText(text);
+      if (rname) { room.name = rname; updateMinimap(); }
+      // 正则触发器
+      for (const t of scriptHooks.match) {
+        const m = t.re.exec(text);
+        if (m) { try { t.cb(m, text); } catch (e) { console.error('script.match:', e); } }
+      }
+    }
+    function fireSent(text)         { scriptHooks.sent.forEach(cb => { try { cb(text); } catch (e) { console.error(e); } }); }
+    function fireGmcp(pkg, data)    { scriptHooks.gmcp.forEach(cb => { try { cb(pkg, data); } catch (e) { console.error(e); } }); }
+
+    function runUserScript(code) {
+      clearHooks();
+      const status = $('script-status');
+      if (!code || !code.trim()) {
+        status.className = ''; status.textContent = '未启用脚本';
+        return;
+      }
+      try {
+        const fn = new Function('pkx', code);
+        fn(pkx);
+        status.className = 'ok';
+        const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        status.textContent = `脚本已加载于 ${ts}（数据钩子 ${scriptHooks.data.length} · 发送钩子 ${scriptHooks.sent.length} · GMCP 钩子 ${scriptHooks.gmcp.length} · 正则触发 ${scriptHooks.match.length}）`;
+      } catch (e) {
+        status.className = 'error';
+        status.textContent = '脚本错误：' + e.message;
+        console.error('script:', e);
+      }
     }
 
     // —— 主题与设置 —— //
@@ -1025,8 +1366,14 @@
     });
 
     inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); submit(); }
-      else if (e.key === 'ArrowUp') {
+      if (e.key === 'Enter') { e.preventDefault(); submit(); return; }
+      // 输入框为空 + 方向键 = 行走；非空 = 历史浏览
+      if (!inp.value && ARROW_DIR[e.key]) {
+        e.preventDefault();
+        walk(ARROW_DIR[e.key]);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
         if (history.length === 0) return;
         e.preventDefault();
         if (historyIdx === history.length) pendingInput = inp.value;
@@ -1041,8 +1388,82 @@
       } else if (e.key === 'Escape') {
         if (modal.classList.contains('open')) closeSettings();
         if (logPanel.classList.contains('open')) closeLog();
+        if ($('modal-script').classList.contains('open')) closeScript();
       }
     });
+
+    // Alt + 方向键 / Numpad 始终 = 行走（即使输入框非空）
+    document.addEventListener('keydown', e => {
+      // Alt + 方向键
+      if (e.altKey && ARROW_DIR[e.key]) {
+        e.preventDefault();
+        walk(ARROW_DIR[e.key]);
+        return;
+      }
+      // 数字键盘（NumLock 关闭时）= 8 方位 + 5(look)
+      if (e.code && e.code.startsWith('Numpad') && document.activeElement !== inp) {
+        const map = { Numpad8:'n', Numpad2:'s', Numpad4:'w', Numpad6:'e',
+                      Numpad7:'nw', Numpad9:'ne', Numpad1:'sw', Numpad3:'se',
+                      Numpad5:'l', NumpadAdd:'u', NumpadSubtract:'d' };
+        if (map[e.code]) { e.preventDefault(); walk(map[e.code]); }
+      }
+    });
+
+    // 罗盘 + 小地图出口的方向链接：点击 = 走
+    function bindDirClicks(rootSel) {
+      document.querySelectorAll(rootSel + ' a[data-dir]').forEach(el => {
+        el.addEventListener('click', () => walk(el.dataset.dir));
+      });
+    }
+    bindDirClicks('#compass');
+    // 小地图出口是动态生成的，用事件代理
+    $('mm-exits').addEventListener('click', (e) => {
+      const a = e.target.closest('a[data-dir]');
+      if (a) walk(a.dataset.dir);
+    });
+
+    // —— 小地图 / 罗盘 / 脚本 切换 —— //
+    function toggleMinimap() {
+      const on = !$('minimap').classList.contains('show');
+      $('minimap').classList.toggle('show', on);
+      document.body.classList.toggle('has-minimap', on);
+      prefs.set('minimap', on ? '1' : '0');
+    }
+    function toggleCompass() {
+      const on = !$('compass').classList.contains('show');
+      $('compass').classList.toggle('show', on);
+      prefs.set('compass', on ? '1' : '0');
+    }
+    // 罗盘的 'l' 按钮点击 = look 而非走 'l'，但 walk('l') 已发送 l，效果一致
+    function openScript() {
+      $('modal-script').classList.add('open');
+      mask.classList.add('open');
+      $('script-text').value = prefs.get('script', '');
+      $('script-text').focus();
+    }
+    function closeScript() {
+      $('modal-script').classList.remove('open');
+      if (!modal.classList.contains('open') && !logPanel.classList.contains('open')) {
+        mask.classList.remove('open');
+      }
+    }
+    function applyScript() {
+      const code = $('script-text').value;
+      prefs.set('script', code);
+      runUserScript(code);
+    }
+
+    $('nav-map').addEventListener('click', toggleMinimap);
+    $('nav-compass').addEventListener('click', toggleCompass);
+    $('nav-script').addEventListener('click', openScript);
+    $('script-save').addEventListener('click', applyScript);
+    $('script-clear').addEventListener('click', () => {
+      if (!confirm('清空当前脚本并禁用？')) return;
+      $('script-text').value = '';
+      prefs.set('script', '');
+      runUserScript('');
+    });
+    $('script-close').addEventListener('click', closeScript);
 
     // 启动文案：浏览器 vs Electron 桌面
     const inElectron = !!window.pkuxkx && window.pkuxkx.isElectron;
@@ -1053,9 +1474,24 @@
       appendSystem('北大侠客行 · Web 客户端 已就绪 (mud.pkuxkx.net:8080 / GBK / MXP)');
       appendSystem('需先运行本地桥接：node bridge.js   （默认 ws://localhost:8765 → mud.pkuxkx.net:8080）');
     }
-    appendSystem('点击底部 【连】 开始游戏；MXP 协商成功后顶栏出现 [MXP]，红色链接可点击填入命令行');
+    appendSystem('【图】= 左侧小地图  【罗】= 方向罗盘  【脚】= JS 脚本  ↑↓←→ = 走路（输入框为空时）');
     setStatus('disconnected', '未连接');
     inp.focus();
+
+    // 恢复持久化的开关与脚本（显式设状态，避免 toggle 受当前 class 影响）
+    function setMinimap(on) {
+      $('minimap').classList.toggle('show', on);
+      document.body.classList.toggle('has-minimap', on);
+      prefs.set('minimap', on ? '1' : '0');
+    }
+    function setCompass(on) {
+      $('compass').classList.toggle('show', on);
+      prefs.set('compass', on ? '1' : '0');
+    }
+    setMinimap(prefs.get('minimap', '1') === '1');
+    setCompass(prefs.get('compass', '0') === '1');
+    const savedScript = prefs.get('script', '');
+    if (savedScript) runUserScript(savedScript);
 
     // Electron 注入了 ws 端口参数时，自动连接
     if (urlAuto) setTimeout(connect, 200);
