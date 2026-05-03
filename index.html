@@ -92,28 +92,39 @@
       left: 0;
     }
 
-    /* 居中窄列（致敬 xkx .container max-width 600px） */
+    /* MUD 主区：随窗口拉伸（仅在超宽屏限到 1400px 居中，避免单行过长难以阅读） */
     .container {
       display: block;
-      max-width: 720px;
+      width: 100%;
+      max-width: 1400px;
       margin: 0 auto;
-      padding: 4em 20px 9em;
+      padding: 3em 14px 8.5em;
       background: #FFFFFF;
       transition: background 0.6s;
     }
     .dark .container { background: #000; }
 
-    /* MUD 输出区（保留 ANSI 颜色，但用 13pt 楷体大行距，呼应 xkx 的段落样式） */
+    /* MUD 输出区：必须等宽字体，否则 ASCII 地图错位
+       SimSun/NSimSun (中易宋体) 在 Windows 上是 ASCII=半宽 / CJK=全宽 的标准组合，
+       PKUXKX 的地图就是按这个比例画的 */
     #story {
-      font-size: 13pt;
+      font-family: "Sarasa Mono SC", NSimSun, SimSun, "新宋体", "宋体",
+                   "Cascadia Mono", Consolas, "Courier New", monospace;
+      font-size: 14px;
       color: #151515;
-      line-height: 1.7em;
-      font-weight: lighter;
+      line-height: 1.45;
+      font-weight: normal;
       white-space: pre-wrap;
-      word-break: break-word;
+      word-break: keep-all;
+      overflow-wrap: normal;
       transition: color 0.6s;
     }
     .dark #story { color: #d4d4d4; }
+    /* 系统提示 / 命令回显 仍可用古风字体，与 MUD 主体区分 */
+    #story .system, #story .echo {
+      font-family: Kaiti, "Noto Sans SC", "STKaiti", "PingFang SC", sans-serif;
+      font-weight: lighter;
+    }
 
     #story .echo {
       display: block;
@@ -152,7 +163,8 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      max-width: 720px;
+      width: 100%;
+      max-width: 1400px;
       margin: 0 auto;
     }
     .prompt-mark {
@@ -804,7 +816,18 @@
     }
     function submit() {
       const raw = inp.value;
-      if (!raw) { appendEcho(''); send(''); return; }
+      if (!raw) {
+        // 空回车 = 重复上一条指令；尚未发过任何命令时退化为发空行（用于初始登录确认）
+        if (history.length > 0) {
+          const last = history[history.length - 1];
+          appendEcho(last);
+          send(last);
+        } else {
+          appendEcho('');
+          send('');
+        }
+        return;
+      }
       if (history[history.length - 1] !== raw) history.push(raw);
       historyIdx = history.length;
       const parts = raw.split(';').map(s => s.trim()).filter(s => s.length);
