@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>侠客行</title>
+  <title>北 大 侠 客 行</title>
   <link href="https://fonts.googleapis.com/css?family=Noto+Sans+SC:300,700&display=swap&subset=chinese-simplified" rel="stylesheet">
   <style>
     /* —— 参考 Ancientwood/xkx (ancientwood.github.io/xkx) 的 UI 语言 ——
@@ -327,10 +327,48 @@
     .underline { text-decoration: underline; }
     .blink { animation: blink 1s steps(2, start) infinite; }
     @keyframes blink { to { visibility: hidden; } }
+
+    /* —— MXP 元素 —— */
+    /* 可点击的 MXP <SEND>：点一下把命令填入命令行 */
+    .mxp-send {
+      color: #D50303;
+      cursor: pointer;
+      text-decoration: underline dotted;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+      font-weight: 700;
+      transition: color 0.3s;
+    }
+    .mxp-send:hover {
+      color: #FC0505;
+      text-decoration-style: solid;
+      background: rgba(213, 3, 3, 0.06);
+    }
+    .dark .mxp-send { color: #cc8f1a; }
+    .dark .mxp-send:hover { color: #ffd673; background: rgba(204, 143, 26, 0.12); }
+    /* 普通 MXP 超链接 <A href> */
+    .mxp-link {
+      color: #2070d0;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .dark .mxp-link { color: #5ca7ff; }
+    .mxp-high { font-weight: 700; }
+
+    /* MXP 协商成功后顶栏的小指示 */
+    #mxp-indicator {
+      display: none;
+      margin-left: 6px;
+      font-size: 9pt;
+      color: #2a7a2a;
+      font-weight: 700;
+    }
+    .dark #mxp-indicator { color: #4ee06b; }
+    #mxp-indicator.on { display: inline; }
   </style>
 </head>
 <body>
-  <h3 class="topbar">侠 客 行<span class="sep">·</span><a id="status-text">未连接</a></h3>
+  <h3 class="topbar">北 大 侠 客 行<span class="sep">·</span><a id="status-text">未连接</a><span id="mxp-indicator" title="MXP 协议已启用，可点击红色链接">[MXP]</span></h3>
 
   <div id="controls">
     <a id="ctrl-theme">夜</a>
@@ -446,7 +484,7 @@
       if (ansi.blink)       cls.push('blink');
       return cls;
     }
-    function applyCodes(codes) {
+    function applyAnsiCodes(codes) {
       if (codes.length === 0) codes = [0];
       for (const c of codes) {
         if (c === 0)      { ansi.bold = false; ansi.fg = null; ansi.bg = null;
@@ -464,22 +502,170 @@
         else if (c >= 90 && c <= 97) { ansi.fg = c - 60; ansi.bold = true; }
       }
     }
+
+    // —— MXP 状态与解析 —— //
+    // 模式：'open' (默认，仅基础格式) / 'secure' (允许 SEND/A) / 'locked' (不解析)
+    const mxp = { mode: 'open', enabled: false };
+    function applyMxpMode(code) {
+      // CSI z 子集，按 MXP 规范：0 OPEN, 1 SECURE, 2 LOCKED, 3 RESET, 4 TEMP_SECURE,
+      // 5 LOCK_OPEN, 6 LOCK_SECURE, 7 LOCK_LOCKED
+      switch (code) {
+        case 0: case 5:           mxp.mode = 'open';   break;
+        case 1: case 4: case 6:   mxp.mode = 'secure'; break;
+        case 2: case 7:           mxp.mode = 'locked'; break;
+        case 3:                   mxp.mode = 'open';   break;
+      }
+      if (!mxp.enabled) { mxp.enabled = true; document.getElementById('mxp-indicator').classList.add('on'); }
+    }
+
+    // MXP 实体：&lt; &gt; &amp; &quot; &#NNN;
+    function decodeMxpEntities(s) {
+      return s.replace(/&(lt|gt|amp|quot|apos|#\d+);/g, (full, name) => {
+        if (name === 'lt')   return '<';
+        if (name === 'gt')   return '>';
+        if (name === 'amp')  return '&';
+        if (name === 'quot') return '"';
+        if (name === 'apos') return "'";
+        if (name[0] === '#') { const n = parseInt(name.slice(1), 10); return n ? String.fromCharCode(n) : full; }
+        return full;
+      });
+    }
+    function escapeAttr(s) {
+      return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+
+    // 解析 MXP 标签的属性串：支持位置参数 "x" 与命名属性 key=val
+    function parseMxpAttrs(s) {
+      const attrs = {};
+      let m = s.match(/^\s*"([^"]*)"/);
+      if (m) { attrs._pos = m[1]; s = s.slice(m[0].length); }
+      else { m = s.match(/^\s*'([^']*)'/);
+        if (m) { attrs._pos = m[1]; s = s.slice(m[0].length); } }
+      const re = /(\w+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
+      while ((m = re.exec(s))) {
+        const v = m[2] !== undefined ? m[2] : (m[3] !== undefined ? m[3] : m[4]);
+        attrs[m[1].toLowerCase()] = v;
+      }
+      return attrs;
+    }
+
+    // MXP 颜色名 → CSS 颜色（支持 #rgb / #rrggbb 直接传入）
+    const MXP_COLORS = {
+      black: '#000', red: '#cd3131', green: '#0dbc79', yellow: '#a07820',
+      blue: '#2050a0', magenta: '#bc3fbc', cyan: '#11a8cd', white: '#fff',
+      gray: '#888', grey: '#888', silver: '#c0c0c0', maroon: '#800000',
+      olive: '#808000', lime: '#00ff00', aqua: '#00ffff', teal: '#008080',
+      navy: '#000080', purple: '#800080', fuchsia: '#ff00ff'
+    };
+    function cssColor(name) {
+      if (!name) return '';
+      const n = String(name).toLowerCase().trim();
+      if (MXP_COLORS[n]) return MXP_COLORS[n];
+      if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/.test(n)) return n;
+      return '';
+    }
+
+    // 渲染单个 MXP 标签为 HTML 片段
+    function renderMxpTag(tag, isClose, attrStr) {
+      const allowSecure = mxp.mode !== 'locked'; // 我们对 SEND 一律允许（除非显式 locked）
+      const attrs = isClose ? {} : parseMxpAttrs(attrStr);
+      switch (tag) {
+        case 'send': {
+          if (!allowSecure) return '';
+          if (isClose) return '</a>';
+          // 命令优先级：href > 位置参数 > （fallback 由点击时取 textContent 完成）
+          const cmdRaw = attrs.href || attrs._pos || '';
+          const cmd = cmdRaw.split('|')[0];
+          const hint = (attrs.hint || cmd || '').split('|')[0];
+          let h = '<a class="mxp-send"';
+          if (cmd)  h += ' data-cmd="' + escapeAttr(cmd) + '"';
+          if (hint) h += ' title="' + escapeAttr(hint) + '"';
+          // prompt 属性：填入而不发送（恰好是我们默认行为，标记一下方便扩展）
+          if ('prompt' in attrs) h += ' data-prompt="1"';
+          return h + '>';
+        }
+        case 'a': case 'hyperlink': {
+          if (!allowSecure) return '';
+          if (isClose) return '</a>';
+          if (attrs.xch_cmd) return '<a class="mxp-send" data-cmd="' + escapeAttr(attrs.xch_cmd) + '">';
+          const url = attrs.href || attrs._pos || '#';
+          return '<a class="mxp-link" href="' + escapeAttr(url) + '" target="_blank" rel="noopener">';
+        }
+        case 'b': case 'bold': case 'strong':
+          return isClose ? '</b>' : '<b>';
+        case 'i': case 'italic': case 'em':
+          return isClose ? '</i>' : '<i>';
+        case 'u': case 'underline':
+          return isClose ? '</u>' : '<u>';
+        case 's': case 'strike': case 'strikeout':
+          return isClose ? '</s>' : '<s>';
+        case 'h': case 'high':
+          return isClose ? '</span>' : '<span class="mxp-high">';
+        case 'br':   return '<br>';
+        case 'hr':   return '<hr>';
+        case 'small':return isClose ? '</small>' : '<small>';
+        case 'tt':   return isClose ? '</code>' : '<code>';
+        case 'nobr': return isClose ? '</span>' : '<span style="white-space:nowrap">';
+        case 'p':    return isClose ? '</p>' : '<p>';
+        case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6':
+          return isClose ? '</' + tag + '>' : '<' + tag + '>';
+        case 'c': case 'color': {
+          if (isClose) return '</span>';
+          const fg = cssColor(attrs.fore || attrs._pos);
+          const bg = cssColor(attrs.back);
+          const styles = [];
+          if (fg) styles.push('color:' + fg);
+          if (bg) styles.push('background:' + bg);
+          return '<span style="' + styles.join(';') + '">';
+        }
+        case 'font': {
+          if (isClose) return '</span>';
+          const fg = cssColor(attrs.color || attrs.fore);
+          const bg = cssColor(attrs.back);
+          const styles = [];
+          if (fg) styles.push('color:' + fg);
+          if (bg) styles.push('background:' + bg);
+          if (attrs.size) { const sz = parseInt(attrs.size, 10); if (sz > 0 && sz < 100) styles.push('font-size:' + sz + 'pt'); }
+          return '<span style="' + styles.join(';') + '">';
+        }
+        // MXP 元素定义/版本/选项类标签：吃掉不显示
+        case 'expire': case 'version': case 'support': case 'option':
+        case 'var': case 'mxp': case 'reset': case 'element': case 'el':
+        case 'attlist': case 'at': case 'frame': case 'dest': case 'gauge': case 'stat':
+          return '';
+        default:
+          return ''; // 未知标签：吞掉，避免污染显示
+      }
+    }
+
     function wrap(text) {
       if (!text) return '';
-      const esc = escapeHtml(text);
+      const decoded = mxp.enabled ? decodeMxpEntities(text) : text;
+      const esc = escapeHtml(decoded);
       const cls = ansiClasses();
       return cls.length ? `<span class="${cls.join(' ')}">${esc}</span>` : esc;
     }
+
+    // 同时识别 ANSI 转义（CSI ... 字母）与 MXP 标签
     function renderChunk(text) {
       text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       let html = '';
-      const re = /\x1b\[([0-9;]*)([A-Za-z])/g;
+      const re = /\x1b\[([0-9;]*)([a-zA-Z])|<(\/?)([A-Za-z][\w-]*)\b([^>]*)>/g;
       let last = 0, m;
       while ((m = re.exec(text)) !== null) {
         if (m.index > last) html += wrap(text.slice(last, m.index));
-        if (m[2] === 'm') {
-          const codes = m[1].length ? m[1].split(';').map(n => parseInt(n, 10) || 0) : [0];
-          applyCodes(codes);
+        if (m[2]) {
+          // ANSI / MXP 模式切换 (CSI ... letter)
+          if (m[2] === 'm') {
+            const codes = m[1].length ? m[1].split(';').map(n => parseInt(n, 10) || 0) : [0];
+            applyAnsiCodes(codes);
+          } else if (m[2] === 'z') {
+            applyMxpMode(parseInt(m[1], 10) || 0);
+          }
+          // 其它 CSI（光标移动等）静默吞掉
+        } else {
+          // MXP 标签
+          html += renderMxpTag(m[4].toLowerCase(), m[3] === '/', m[5] || '');
         }
         last = m.index + m[0].length;
       }
@@ -569,6 +755,18 @@
       });
     });
 
+    // —— MXP <SEND> 点击：把命令填入命令行（不立即发送），让玩家可编辑后回车 —— //
+    story.addEventListener('click', e => {
+      const a = e.target.closest('a.mxp-send');
+      if (!a) return;
+      e.preventDefault();
+      // data-cmd 缺失时（例如 <SEND>north</SEND>）回落到链接文本本身
+      const cmd = (a.dataset.cmd && a.dataset.cmd.length) ? a.dataset.cmd : a.textContent.trim();
+      inp.value = cmd;
+      inp.focus();
+      inp.setSelectionRange(cmd.length, cmd.length);
+    });
+
     inp.addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); submit(); }
       else if (e.key === 'ArrowUp') {
@@ -589,9 +787,9 @@
     });
 
     // 启动文案
-    appendSystem('侠客行 · Web 客户端 已就绪');
-    appendSystem('需先运行本地桥接：node bridge.js   （默认 ws://localhost:8765 → mud.pkuxkx.net:8081）');
-    appendSystem('点击底部 【连】 开始游戏；【夜】切换夜色；【设】配置桥接地址');
+    appendSystem('北大侠客行 · Web 客户端 已就绪 (mud.pkuxkx.net:8080 / GBK / MXP)');
+    appendSystem('需先运行本地桥接：node bridge.js   （默认 ws://localhost:8765 → mud.pkuxkx.net:8080）');
+    appendSystem('点击底部 【连】 开始游戏；MXP 协商成功后顶栏出现 [MXP]，红色链接可点击填入命令行');
     setStatus('disconnected', '未连接');
     inp.focus();
   })();

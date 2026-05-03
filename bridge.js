@@ -4,7 +4,7 @@
 //
 // 用法：
 //   npm install
-//   node bridge.js                       # 默认 ws://0.0.0.0:8765 → mud.pkuxkx.net:8081
+//   node bridge.js                       # 默认 ws://0.0.0.0:8765 → mud.pkuxkx.net:8080
 //   PORT=9000 MUD_HOST=mud.pkuxkx.net MUD_PORT=8080 node bridge.js
 
 const http = require('http');
@@ -14,16 +14,18 @@ const iconv = require('iconv-lite');
 
 const PORT     = parseInt(process.env.PORT, 10) || 8765;
 const MUD_HOST = process.env.MUD_HOST || 'mud.pkuxkx.net';
-const MUD_PORT = parseInt(process.env.MUD_PORT, 10) || 8081;
+const MUD_PORT = parseInt(process.env.MUD_PORT, 10) || 8080;
 
 // Telnet 协议常量
 const IAC  = 0xFF, DONT = 0xFE, DO = 0xFD, WONT = 0xFC, WILL = 0xFB;
 const SB   = 0xFA, SE   = 0xF0;
+// Telnet 选项：MXP (MUD eXtension Protocol) = 91
+const OPT_MXP = 91;
 
-// 解析并剥离 Telnet IAC 序列；对常见协商做出最小化回应（一律拒绝）。
+// 解析并剥离 Telnet IAC 序列；接受 MXP，其它选项一律拒绝。
 // 状态保存在 ctx 中，因为 IAC 序列可能跨 TCP 包到达。
-function makeTelnetStripper(replyBack) {
-  const ctx = { state: 0, cmd: 0, sb: [] };
+function makeTelnetStripper(replyBack, onMxpEnabled) {
+  const ctx = { state: 0, cmd: 0 };
   return function strip(buf) {
     const out = [];
     for (let i = 0; i < buf.length; i++) {
@@ -34,23 +36,29 @@ function makeTelnetStripper(replyBack) {
           break;
         case 1: // 已读到 IAC，等待命令字节
           if (b === IAC) { out.push(IAC); ctx.state = 0; }       // 转义的 0xFF
-          else if (b === SB) { ctx.state = 3; ctx.sb.length = 0; }
+          else if (b === SB) { ctx.state = 3; }
           else if (b === WILL || b === WONT || b === DO || b === DONT) {
             ctx.cmd = b; ctx.state = 2;
           } else { ctx.state = 0; }                              // 其它命令忽略
           break;
         case 2: // WILL/WONT/DO/DONT 后的选项字节
-          // 一律拒绝以保持简单：服务器 WILL → 我们 DONT；服务器 DO → 我们 WONT。
-          if (ctx.cmd === WILL)      replyBack(Buffer.from([IAC, DONT, b]));
-          else if (ctx.cmd === DO)   replyBack(Buffer.from([IAC, WONT, b]));
+          if (ctx.cmd === WILL) {
+            // 服务器愿意做 X：MXP 接受，其它拒绝
+            if (b === OPT_MXP) { replyBack(Buffer.from([IAC, DO, b])); onMxpEnabled && onMxpEnabled(); }
+            else replyBack(Buffer.from([IAC, DONT, b]));
+          } else if (ctx.cmd === DO) {
+            // 服务器希望我们做 X：MXP 接受，其它拒绝
+            if (b === OPT_MXP) { replyBack(Buffer.from([IAC, WILL, b])); onMxpEnabled && onMxpEnabled(); }
+            else replyBack(Buffer.from([IAC, WONT, b]));
+          }
           ctx.state = 0;
           break;
-        case 3: // 子协商内容，直到 IAC SE
-          if (b === IAC) ctx.state = 4; else ctx.sb.push(b);
+        case 3: // 子协商内容，等到 IAC SE 结束
+          if (b === IAC) ctx.state = 4;
           break;
         case 4: // 子协商中收到 IAC
           if (b === SE) ctx.state = 0;
-          else if (b === IAC) { ctx.sb.push(IAC); ctx.state = 3; }
+          else if (b === IAC) ctx.state = 3;
           else ctx.state = 3;
           break;
       }
@@ -72,7 +80,10 @@ wss.on('connection', (ws, req) => {
 
   const tcp = net.createConnection({ host: MUD_HOST, port: MUD_PORT });
   const decoder = iconv.getDecoder('gbk');
-  const stripper = makeTelnetStripper(b => { try { tcp.write(b); } catch (_) {} });
+  const stripper = makeTelnetStripper(
+    b => { try { tcp.write(b); } catch (_) {} },
+    () => { console.log(`[${new Date().toISOString()}] ${peer} 已协商 MXP`); }
+  );
 
   tcp.setNoDelay(true);
 
