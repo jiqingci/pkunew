@@ -334,6 +334,23 @@
     #mm-room { font-size: 13pt; font-weight: 700; color: #D50303; margin-bottom: 2px; }
     .dark #mm-room { color: #cc8f1a; }
     #mm-area { color: #888; font-size: 10pt; margin-bottom: 10px; }
+    #mm-map {
+      font-family: "Sarasa Mono SC", NSimSun, SimSun, "新宋体", "宋体",
+                   "Cascadia Mono", Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.25;
+      background: rgba(0,0,0,0.025);
+      padding: 6px 8px;
+      border-radius: 3px;
+      overflow-x: auto;
+      white-space: pre;
+      word-break: keep-all;
+      max-height: 220px;
+      margin: 0 0 8px;
+      color: #151515;
+    }
+    .dark #mm-map { background: rgba(255,255,255,0.04); color: #d4d4d4; }
+    #mm-map.empty { display: none; }
     #mm-section-title { color: #515C6B; font-size: 10pt; font-weight: 700; margin: 10px 0 4px; border-bottom: 1px dashed #ddd; padding-bottom: 2px; }
     .dark #mm-section-title { color: #888; border-bottom-color: #333; }
     #mm-exits { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
@@ -553,11 +570,98 @@
     #story .ai-reply::before { content: "🤖 AI · "; color: #2070d0; font-weight: 700; }
     .dark #story .ai-reply::before { color: #5ca7ff; }
 
+    /* —— 脚本管理：双栏布局 —— */
+    .script-layout {
+      display: flex;
+      flex: 1;
+      gap: 12px;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .script-list-pane {
+      width: 200px;
+      flex-shrink: 0;
+      border-right: 1px dashed #ddd;
+      padding-right: 12px;
+      overflow-y: auto;
+    }
+    .dark .script-list-pane { border-right-color: #333; }
+    .script-add {
+      display: block;
+      padding: 6px 10px;
+      background: rgba(213, 3, 3, 0.07);
+      color: #D50303;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 3px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-decoration: none;
+      font-family: Kaiti, "Noto Sans SC";
+      font-size: 11pt;
+    }
+    .script-add:hover { background: #D50303; color: #fff; }
+    .dark .script-add { background: rgba(204,143,26,0.12); color: #cc8f1a; }
+    .dark .script-add:hover { background: #cc8f1a; color: #000; }
+    .script-list-item {
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: 3px;
+      font-size: 11pt;
+      border: 1px solid transparent;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .script-list-item:hover { background: rgba(0,0,0,0.04); }
+    .dark .script-list-item:hover { background: rgba(255,255,255,0.04); }
+    .script-list-item.active {
+      background: rgba(213,3,3,0.06);
+      border-color: rgba(213,3,3,0.2);
+    }
+    .dark .script-list-item.active { background: rgba(204,143,26,0.1); border-color: rgba(204,143,26,0.3); }
+    .script-list-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .script-list-item .mark { font-size: 10pt; }
+    .script-list-item.enabled .mark { color: #2a7a2a; }
+    .script-list-item.disabled .mark { color: #ccc; }
+    .dark .script-list-item.enabled  .mark { color: #4ee06b; }
+    .dark .script-list-item.disabled .mark { color: #444; }
+
+    .script-edit-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .script-edit-header {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding-bottom: 6px;
+    }
+    .script-edit-header input[type=text] {
+      flex: 1;
+      padding: 5px 8px;
+      border: none;
+      border-bottom: 1px solid #ccc;
+      background: transparent;
+      color: #151515;
+      font-family: Kaiti, "Noto Sans SC";
+      font-size: 12pt;
+      outline: none;
+    }
+    .script-edit-header input[type=text]:focus { border-bottom-color: #D50303; }
+    .dark .script-edit-header input[type=text] { color: #fff; border-bottom-color: #444; }
+    .script-edit-header label.check { color: #888; font-size: 10pt; cursor: pointer; user-select: none; white-space: nowrap; }
+    .script-edit-header label.check input { vertical-align: middle; margin-right: 4px; }
+
     /* —— 脚本面板 —— */
     #script-text {
+      flex: 1;
       width: 100%;
       box-sizing: border-box;
-      min-height: 320px;
+      min-height: 200px;
       padding: 10px;
       font-family: Consolas, "Cascadia Code", monospace;
       font-size: 12pt;
@@ -565,7 +669,7 @@
       color: #151515;
       border: 1px solid #ddd;
       border-radius: 3px;
-      resize: vertical;
+      resize: none;
       outline: none;
     }
     .dark #script-text { background: rgba(255,255,255,0.04); color: #e0e0e0; border-color: #333; }
@@ -722,8 +826,12 @@
   <div id="status-panel"></div>
 
   <div id="minimap">
-    <div id="mm-room">未连接</div>
-    <div id="mm-area">--</div>
+    <div id="mm-drag" style="cursor:move">
+      <div id="mm-room">未连接</div>
+      <div id="mm-area">--</div>
+    </div>
+    <div id="mm-section-title">局部地图</div>
+    <pre id="mm-map" class="empty"></pre>
     <div id="mm-section-title">出口</div>
     <div id="mm-exits"><span style="color:#aaa;font-size:10pt">尚无</span></div>
     <div id="mm-section-title">状态</div>
@@ -782,31 +890,34 @@
     </div>
   </div>
   <div class="modal modal-large" id="modal-script">
-    <h2>J S  脚 本</h2>
-    <div class="log-actions">
-      <span style="color:#888;font-size:10pt">
-        可用 API：<code>pkx.send(cmd)</code> · <code>pkx.print(html)</code> ·
-        <code>pkx.on('data'|'sent'|'gmcp', cb)</code> ·
-        <code>pkx.match(re, cb)</code> · <code>pkx.set/get(k,v)</code> ·
-        <code>pkx.title(s)</code>
-      </span>
+    <div class="popup-header">
+      <div>
+        <span class="popup-title">JS 脚 本 管 理</span>
+        <span class="popup-cmd-tag" id="script-stat-tag">0 / 0 启用</span>
+      </div>
+      <div class="popup-actions">
+        <a id="script-apply-all" title="保存当前编辑并应用所有启用的脚本">【应用全部】</a>
+        <a id="script-close" title="ESC">【闭】</a>
+      </div>
     </div>
-    <textarea id="script-text" spellcheck="false" placeholder="// 示例：从 GMCP Char.Vitals 中显示 HP
-pkx.on('gmcp', (pkg, data) => {
-  if (pkg === 'Char.Vitals') {
-    pkx.title('HP ' + data.hp + '/' + data.max_hp);
-  }
-});
-
-// 示例：用正则匹配主屏文本，提示低血
-pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
-  if (parseInt(m[1]) < 50) pkx.print('&lt;span style=color:red&gt;⚠ 体力低！&lt;/span&gt;');
-});"></textarea>
-    <div id="script-status">未启用脚本</div>
-    <div class="modal-actions">
-      <a id="script-save">【应用】</a>
-      <a id="script-clear" class="muted">【清空】</a>
-      <a id="script-close" class="muted">【闭】</a>
+    <div class="script-layout">
+      <div class="script-list-pane">
+        <a class="script-add" id="script-add">+ 新建脚本</a>
+        <div id="script-list"></div>
+      </div>
+      <div class="script-edit-pane">
+        <div class="script-edit-header">
+          <input id="script-name" placeholder="脚本名" type="text">
+          <label class="check"><input type="checkbox" id="script-enabled"> 启用</label>
+          <a id="script-delete" class="muted" title="删除当前脚本">【删除】</a>
+        </div>
+        <div class="hint" style="font-size:9pt;color:#aaa;margin:2px 0 4px">
+          API：<code>pkx.send/print/title</code> · <code>pkx.on('data'|'sent'|'gmcp', cb)</code> ·
+          <code>pkx.match(re, cb)</code> · <code>pkx.set/get(k,v)</code>
+        </div>
+        <textarea id="script-text" spellcheck="false"></textarea>
+        <div id="script-status">未启用脚本</div>
+      </div>
     </div>
   </div>
   <div class="modal popup-modal" id="modal-popup">
@@ -876,14 +987,17 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     <div class="settings-section">
       <h3>键位说明</h3>
       <div class="hint" style="line-height:1.7">
-        <strong>独立浮窗</strong>（按键弹窗 + 主屏照常显示）：
-        <kbd>B</kbd>/<kbd>I</kbd>背包 · <kbd>L</kbd>查看 · <kbd>M</kbd>地图
-        · <kbd>S</kbd>能力 · <kbd>X</kbd>出口 · <kbd>W</kbd>玩家<br>
-        <strong>直发主屏</strong>：<kbd>H</kbd>hp · <kbd>F</kbd>fullme · <kbd>Q</kbd>任务 · <kbd>T</kbd>time<br>
-        <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 走路（输入框空时）·
-        <kbd>Alt</kbd>+方向 始终走路 · <kbd>NumPad</kbd> 8 方位+5(look)+/-（u/d）<br>
-        <kbd>Esc</kbd> 关浮窗 → 关任意 modal → 打开本设置 · <kbd>Enter</kbd> 空回车=重复上指<br>
-        <kbd>/ai 问题</kbd> 调用 AI 助手
+        <strong>独立浮窗</strong>（弹窗显示，主屏照常）：
+        <kbd>Alt</kbd>+<kbd>B</kbd>/<kbd>I</kbd>背包 · <kbd>Alt</kbd>+<kbd>L</kbd>查看 ·
+        <kbd>Alt</kbd>+<kbd>M</kbd>地图 · <kbd>Alt</kbd>+<kbd>S</kbd>能力 ·
+        <kbd>Alt</kbd>+<kbd>X</kbd>出口 · <kbd>Alt</kbd>+<kbd>W</kbd>玩家<br>
+        <strong>直发主屏</strong>：<kbd>Alt</kbd>+<kbd>H</kbd>hp · <kbd>Alt</kbd>+<kbd>F</kbd>fullme ·
+        <kbd>Alt</kbd>+<kbd>Q</kbd>任务 · <kbd>Alt</kbd>+<kbd>T</kbd>time<br>
+        <strong>行走</strong>：<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>（输入框空时）·
+        <kbd>Alt</kbd>+方向（始终）· <kbd>NumPad</kbd> 8 方位 + 5(look) + +/-（u/d）<br>
+        <strong>其它</strong>：任何字母键 → 自动聚焦输入框（lm/inv/score 等正常输入）<br>
+        <kbd>Esc</kbd> 关浮窗 → 关任意 modal → 打开本设置 · <kbd>Enter</kbd> 空=重复上指<br>
+        <kbd>/ai 问题</kbd> 调用 AI 助手 · 浮窗 / 小地图 / 罗盘 / 脚本面板均可拖动 + 缩放
       </div>
     </div>
 
@@ -1375,6 +1489,74 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       return html;
     }
 
+    // —— 通用：浮窗拖动 + 缩放 —— //
+    // headerEl 是触发拖动的区域（鼠标在它上面按下才能拖）；省略表示整个 el 都能拖。
+    // posKey 用于 localStorage 持久化位置/大小。resizable=true 时启用 CSS resize: both。
+    function makeDraggable(el, headerEl, posKey, resizable) {
+      headerEl = headerEl || el;
+      if (resizable) {
+        el.style.resize = 'both';
+        el.style.overflow = 'auto';
+      }
+      // 恢复保存的位置/大小
+      if (posKey) {
+        const saved = prefs.get('pos.' + posKey, '');
+        if (saved) {
+          try {
+            const p = JSON.parse(saved);
+            if (p.left)   el.style.left   = p.left;
+            if (p.top)    el.style.top    = p.top;
+            if (p.width)  el.style.width  = p.width;
+            if (p.height) el.style.height = p.height;
+            el.style.right = 'auto'; el.style.bottom = 'auto';
+            el.style.transform = 'none'; el.style.margin = '0';
+          } catch (_) {}
+        }
+      }
+      const savePos = () => {
+        if (!posKey) return;
+        prefs.set('pos.' + posKey, JSON.stringify({
+          left: el.style.left, top: el.style.top,
+          width: el.style.width, height: el.style.height
+        }));
+      };
+      // 缩放：监听 element resize（用 ResizeObserver）
+      if (resizable && window.ResizeObserver) {
+        let timer;
+        new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(savePos, 200); }).observe(el);
+      }
+      // 拖动
+      let dragging = false, startX, startY, startLeft, startTop;
+      headerEl.addEventListener('mousedown', (e) => {
+        // 让 header 内部的 a/button/input 仍可点击
+        if (e.target.closest('a, button, input, select, textarea')) return;
+        if (e.button !== 0) return;
+        const rect = el.getBoundingClientRect();
+        startLeft = rect.left; startTop = rect.top;
+        // 切换到 left/top 模式（取消 transform 居中、right/bottom 锚定）
+        el.style.left = startLeft + 'px';
+        el.style.top = startTop + 'px';
+        el.style.right = 'auto'; el.style.bottom = 'auto';
+        el.style.transform = 'none'; el.style.margin = '0';
+        dragging = true;
+        startX = e.clientX; startY = e.clientY;
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        // 限制不让浮窗整个移出视口
+        const maxLeft = window.innerWidth - 40;
+        const maxTop  = window.innerHeight - 30;
+        const nx = Math.max(-el.offsetWidth + 60, Math.min(maxLeft, startLeft + e.clientX - startX));
+        const ny = Math.max(0, Math.min(maxTop, startTop + e.clientY - startY));
+        el.style.left = nx + 'px';
+        el.style.top  = ny + 'px';
+      });
+      document.addEventListener('mouseup', () => {
+        if (dragging) { dragging = false; savePos(); }
+      });
+    }
+
     // —— 信息浮窗：按 B/I/L/M/S/X/W 等弹出对应命令的回应 —— //
     const popup = {
       capturing: false,
@@ -1480,11 +1662,18 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     }
 
     // —— 小地图 / 状态 —— //
-    const room = { name: '', area: '', exits: [] };
+    const room = { name: '', area: '', exits: [], map: '' };
     const vitals = {};
     function updateMinimap() {
       $('mm-room').textContent = room.name || '未知房间';
       $('mm-area').textContent = room.area || '--';
+      const mapEl = $('mm-map');
+      if (room.map && room.map.trim()) {
+        mapEl.innerHTML = renderAnsiBlock(room.map);
+        mapEl.classList.remove('empty');
+      } else {
+        mapEl.classList.add('empty');
+      }
       const exitsEl = $('mm-exits');
       if (!room.exits.length) {
         exitsEl.innerHTML = '<span style="color:#aaa;font-size:10pt">尚无</span>';
@@ -1493,6 +1682,47 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
           `<a data-dir="${escapeAttr(e)}" title="点击走 ${escapeAttr(e)}">${escapeHtml(e)}</a>`
         ).join('');
       }
+    }
+
+    // 滑动 buffer：累积最近 ~6KB 数据，用于跨 chunk 提取局部地图
+    let recentBuffer = '';
+    const RECENT_MAX = 6000;
+    // PKUXKX 房间标题行示例：「客店 -[2;37;0m [[1;31m大宋[2;37;0m国] [[1;36m城市[2;37;0m] [[1;32m存盘点[2;37;0m] ★」
+    // 去 ANSI 后形如：「客店 - [大宋国] [城市] [存盘点] ★」
+    const ROOM_TITLE_RE = /^\s*([^\s\-\[]{1,16})\s*-\s*\[/;
+    // 地图行特征：前导空白多（>= 6）或含结构字符（线/箭头/方框等）
+    const MAP_STRUCT_RE = /[│┃|｜╱╲┐└┘┌─━┳┻┣┫╔╗╚╝═║＼／⊕＞＜┄┅★◎〓∧⌒]|─{2,}|━{2,}|----+/;
+    function isMapLike(plainLine) {
+      if (!plainLine.trim()) return 'blank';
+      const leading = (plainLine.match(/^[\s　]*/) || [''])[0].length;
+      if (leading >= 6) return 'map';
+      if (MAP_STRUCT_RE.test(plainLine)) return 'map';
+      return 'other';
+    }
+    function extractLocalMap(buffer) {
+      const stripped = buffer.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+      const linesPlain = stripped.split('\n');
+      const linesRaw   = buffer.split('\n');
+      for (let i = linesPlain.length - 1; i >= 0; i--) {
+        if (!ROOM_TITLE_RE.test(linesPlain[i])) continue;
+        // 倒序回溯：先跳过紧邻空行，再连续收集"像地图"的行；遇到非地图行或第二段空行 → 终止
+        const mapRaw = [];
+        let started = false;
+        for (let j = i - 1; j >= 0 && j > i - 14; j--) {
+          const kind = isMapLike(linesPlain[j]);
+          if (!started) {
+            if (kind === 'blank') continue;                 // 标题前的空行
+            if (kind === 'other') break;                     // 标题前紧贴非地图（异常）
+            started = true; mapRaw.unshift(linesRaw[j]);
+          } else {
+            if (kind === 'map') mapRaw.unshift(linesRaw[j]);
+            else break;                                      // 空行或非地图 → 结束
+          }
+        }
+        if (mapRaw.length >= 2) return mapRaw.join('\n');
+        return null;
+      }
+      return null;
     }
     function updateVitals() {
       const el = $('mm-vitals');
@@ -1589,6 +1819,10 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     function fireData(text) {
       tryAutoLogin(text);
       captureChunk(text);
+      // 累积流式 buffer 用于提取局部地图
+      recentBuffer = (recentBuffer + text).slice(-RECENT_MAX);
+      const localMap = extractLocalMap(recentBuffer);
+      if (localMap && localMap !== room.map) { room.map = localMap; updateMinimap(); }
       scriptHooks.data.forEach(cb => { try { cb(text); } catch (e) { console.error('script.data:', e); } });
       const exits = tryParseExitsFromText(text);
       if (exits) { room.exits = exits; updateMinimap(); }
@@ -1602,25 +1836,145 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     function fireSent(text)         { scriptHooks.sent.forEach(cb => { try { cb(text); } catch (e) { console.error(e); } }); }
     function fireGmcp(pkg, data)    { scriptHooks.gmcp.forEach(cb => { try { cb(pkg, data); } catch (e) { console.error(e); } }); }
 
-    function runUserScript(code) {
-      clearHooks();
-      const status = $('script-status');
-      if (!code || !code.trim()) {
-        status.className = ''; status.textContent = '未启用脚本';
+    // —— 多脚本管理 —— //
+    const userScripts = [];      // [{id, name, code, enabled}]
+    let currentScriptId = null;
+
+    function genScriptId() {
+      return 'sc_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    }
+    function loadScripts() {
+      // 从 prefs 加载；无效或缺失则迁移旧的单脚本
+      const json = prefs.get('scripts', '');
+      let arr = null;
+      if (json) { try { arr = JSON.parse(json); } catch (_) {} }
+      userScripts.length = 0;
+      if (Array.isArray(arr) && arr.length > 0) {
+        for (const s of arr) {
+          if (!s || typeof s.code !== 'string') continue;
+          userScripts.push({
+            id: s.id || genScriptId(),
+            name: s.name || '未命名',
+            code: s.code,
+            enabled: !!s.enabled
+          });
+        }
+      } else {
+        // 迁移旧的单脚本
+        const legacy = prefs.get('script', '');
+        if (legacy && legacy.trim()) {
+          userScripts.push({ id: 'legacy', name: '旧脚本', code: legacy, enabled: true });
+        }
+      }
+      // 没有任何脚本时给一个示例（默认禁用）
+      if (userScripts.length === 0) {
+        userScripts.push({
+          id: genScriptId(),
+          name: '示例：HP 标题栏',
+          code: '// 通过 GMCP Char.Vitals 把 HP 显示到浏览器标签\npkx.on(\'gmcp\', (pkg, data) => {\n  if (pkg === \'Char.Vitals\' && data && data.hp != null) {\n    pkx.title(\'HP \' + data.hp + \'/\' + (data.max_hp || \'?\'));\n  }\n});',
+          enabled: false
+        });
+      }
+      currentScriptId = userScripts[0].id;
+      saveScripts();
+    }
+    function saveScripts() {
+      prefs.set('scripts', JSON.stringify(userScripts));
+    }
+    function saveCurrentEditor() {
+      const s = userScripts.find(s => s.id === currentScriptId);
+      if (!s) return;
+      s.name = $('script-name').value || '未命名';
+      s.code = $('script-text').value;
+      s.enabled = $('script-enabled').checked;
+      saveScripts();
+    }
+    function renderScriptList() {
+      const list = $('script-list');
+      list.innerHTML = userScripts.map(s => {
+        const active = s.id === currentScriptId ? ' active' : '';
+        const cls = s.enabled ? 'enabled' : 'disabled';
+        const mark = s.enabled ? '●' : '○';
+        return `<div class="script-list-item ${cls}${active}" data-id="${escapeAttr(s.id)}">
+          <span class="mark">${mark}</span>
+          <span class="name">${escapeHtml(s.name)}</span>
+        </div>`;
+      }).join('');
+      const enabledCount = userScripts.filter(s => s.enabled).length;
+      $('script-stat-tag').textContent = `${enabledCount} / ${userScripts.length} 启用`;
+    }
+    function renderScriptEditor() {
+      const s = userScripts.find(s => s.id === currentScriptId);
+      if (!s) {
+        $('script-name').value = '';
+        $('script-text').value = '';
+        $('script-enabled').checked = false;
         return;
       }
-      try {
-        const fn = new Function('pkx', code);
-        fn(pkx);
+      $('script-name').value    = s.name;
+      $('script-text').value    = s.code;
+      $('script-enabled').checked = s.enabled;
+    }
+    function selectScript(id) {
+      saveCurrentEditor();
+      currentScriptId = id;
+      renderScriptList();
+      renderScriptEditor();
+    }
+    function addScript() {
+      saveCurrentEditor();
+      const id = genScriptId();
+      userScripts.push({ id, name: '新脚本', code: '', enabled: false });
+      currentScriptId = id;
+      saveScripts();
+      renderScriptList();
+      renderScriptEditor();
+      setTimeout(() => $('script-name').focus(), 0);
+    }
+    function deleteCurrentScript() {
+      if (!currentScriptId) return;
+      const idx = userScripts.findIndex(s => s.id === currentScriptId);
+      if (idx < 0) return;
+      const s = userScripts[idx];
+      if (!confirm(`删除脚本「${s.name}」？`)) return;
+      userScripts.splice(idx, 1);
+      currentScriptId = userScripts[0]?.id || null;
+      saveScripts();
+      renderScriptList();
+      renderScriptEditor();
+    }
+    function applyAllScripts() {
+      saveCurrentEditor();
+      clearHooks();
+      const errors = [];
+      let okCount = 0;
+      for (const s of userScripts) {
+        if (!s.enabled) continue;
+        try {
+          const fn = new Function('pkx', s.code);
+          fn(pkx);
+          okCount++;
+        } catch (e) {
+          errors.push(`${s.name}: ${e.message}`);
+          console.error('script', s.name, e);
+        }
+      }
+      const status = $('script-status');
+      if (errors.length) {
+        status.className = 'error';
+        status.textContent = `${okCount} 个加载成功 · ${errors.length} 个错误：` + errors.join('; ');
+      } else if (okCount > 0) {
         status.className = 'ok';
         const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-        status.textContent = `脚本已加载于 ${ts}（数据钩子 ${scriptHooks.data.length} · 发送钩子 ${scriptHooks.sent.length} · GMCP 钩子 ${scriptHooks.gmcp.length} · 正则触发 ${scriptHooks.match.length}）`;
-      } catch (e) {
-        status.className = 'error';
-        status.textContent = '脚本错误：' + e.message;
-        console.error('script:', e);
+        status.textContent = `${okCount} 个脚本已加载于 ${ts}（数据钩子 ${scriptHooks.data.length} · GMCP ${scriptHooks.gmcp.length} · 正则 ${scriptHooks.match.length}）`;
+      } else {
+        status.className = '';
+        status.textContent = '没有启用的脚本';
       }
+      renderScriptList();
     }
+    // 兼容老代码：保留同名函数
+    function runUserScript() { applyAllScripts(); }
 
     // —— 主题与设置 —— //
     function toggleTheme() {
@@ -1860,7 +2214,9 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
           || $('modal-popup').classList.contains('open');
     }
 
-    // 全局键盘：ESC / Alt+方向 / NumPad / 单字母快捷键
+    // 全局键盘：ESC / Alt+字母快捷键 / Alt+方向 / NumPad 行走 / 字母自动聚焦输入框
+    // 关键修复：单字母不再直接触发命令（不然玩家输入 lm/inv 等会被截获）。
+    // 浮窗/命令快捷键统一改为 Alt+字母。
     document.addEventListener('keydown', e => {
       // ESC：浮窗 → 设置 → 日志 → 脚本；都没开 → 打开设置
       if (e.key === 'Escape') {
@@ -1876,37 +2232,28 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
         e.preventDefault();
         return walk(ARROW_DIR[e.key]);
       }
-      // 输入框聚焦时不接管字母（让正常输入工作）
+      // Alt + 字母 → 浮窗 / 命令快捷键（不冲突 lm 等输入）
+      if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.length === 1) {
+        const k = e.key.toLowerCase();
+        if (POPUP_BINDINGS[k]) { e.preventDefault(); return openPopup(POPUP_BINDINGS[k].cmd, POPUP_BINDINGS[k].title); }
+        if (MAIN_BINDINGS[k])  { e.preventDefault(); return walk(MAIN_BINDINGS[k]); }
+      }
+      // 输入框聚焦 / modal 打开时不再接管按键
       if (document.activeElement === inp) return;
-      // modal 打开时也不接管（按字母在 modal 内不应触发命令）
       if (anyModalOpen()) return;
-      // NumPad 方位
+      // NumPad 方位（不冲突字母输入）
       if (e.code && e.code.startsWith('Numpad')) {
         const m = { Numpad8:'n', Numpad2:'s', Numpad4:'w', Numpad6:'e',
                     Numpad7:'nw', Numpad9:'ne', Numpad1:'sw', Numpad3:'se',
                     Numpad5:'l', NumpadAdd:'u', NumpadSubtract:'d' };
         if (m[e.code]) { e.preventDefault(); return walk(m[e.code]); }
       }
-      // 单字母（非修饰）
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
-        const k = e.key.toLowerCase();
-        // 浮窗类：发命令并捕获回应到独立浮窗
-        if (POPUP_BINDINGS[k]) {
-          e.preventDefault();
-          return openPopup(POPUP_BINDINGS[k].cmd, POPUP_BINDINGS[k].title);
-        }
-        // 主屏类：直接发命令
-        if (MAIN_BINDINGS[k]) {
-          e.preventDefault();
-          return walk(MAIN_BINDINGS[k]);
-        }
-        // 其它字母/数字：聚焦输入框开始打字
-        if (/^[a-z0-9/]$/.test(k)) {
-          inp.focus();
-          inp.value = e.key;
-          inp.setSelectionRange(inp.value.length, inp.value.length);
-          e.preventDefault();
-        }
+      // 任何字母/数字 → 自动聚焦输入框并填入（让 lm/inv/score 等正常输入）
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && /^[a-zA-Z0-9/;]$/.test(e.key)) {
+        e.preventDefault();
+        inp.focus();
+        inp.value += e.key;
+        inp.setSelectionRange(inp.value.length, inp.value.length);
       }
     });
 
@@ -1943,32 +2290,35 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     function openScript() {
       $('modal-script').classList.add('open');
       mask.classList.add('open');
-      $('script-text').value = prefs.get('script', '');
-      $('script-text').focus();
+      renderScriptList();
+      renderScriptEditor();
     }
     function closeScript() {
+      saveCurrentEditor();
       $('modal-script').classList.remove('open');
-      if (!modal.classList.contains('open') && !logPanel.classList.contains('open')) {
+      if (!modal.classList.contains('open') && !logPanel.classList.contains('open') &&
+          !$('modal-popup').classList.contains('open')) {
         mask.classList.remove('open');
       }
-    }
-    function applyScript() {
-      const code = $('script-text').value;
-      prefs.set('script', code);
-      runUserScript(code);
     }
 
     $('nav-map').addEventListener('click', toggleMinimap);
     $('nav-compass').addEventListener('click', toggleCompass);
     $('nav-script').addEventListener('click', openScript);
-    $('script-save').addEventListener('click', applyScript);
-    $('script-clear').addEventListener('click', () => {
-      if (!confirm('清空当前脚本并禁用？')) return;
-      $('script-text').value = '';
-      prefs.set('script', '');
-      runUserScript('');
-    });
+    $('script-add').addEventListener('click', addScript);
+    $('script-delete').addEventListener('click', deleteCurrentScript);
+    $('script-apply-all').addEventListener('click', applyAllScripts);
     $('script-close').addEventListener('click', closeScript);
+    // 列表项点击切换
+    $('script-list').addEventListener('click', (e) => {
+      const item = e.target.closest('.script-list-item');
+      if (item && item.dataset.id) selectScript(item.dataset.id);
+    });
+    // 编辑区字段失焦时保存到对象（不立即应用）
+    ['script-name', 'script-text', 'script-enabled'].forEach(id => {
+      $(id).addEventListener('change', () => { saveCurrentEditor(); renderScriptList(); });
+      $(id).addEventListener('blur',   () => { saveCurrentEditor(); renderScriptList(); });
+    });
 
     // 启动文案：浏览器 vs Electron 桌面
     const inElectron = !!window.pkuxkx && window.pkuxkx.isElectron;
@@ -1979,8 +2329,8 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       appendSystem('北大侠客行 · Web 客户端 已就绪 (mud.pkuxkx.net:8080 / GBK / MXP)');
       appendSystem('需先运行本地桥接：node bridge.js   （默认 ws://localhost:8765 → mud.pkuxkx.net:8080）');
     }
-    appendSystem('快捷键：B 背包 · L 查看 · M 地图 · S 能力 · X 出口 · W 玩家（弹浮窗）');
-    appendSystem('H hp · F fullme · Q quest · T time（直发主屏）；ESC 关浮窗 / 打开设置');
+    appendSystem('快捷键：Alt+B 背包 · Alt+L 查看 · Alt+M 地图 · Alt+S 能力 · Alt+X 出口 · Alt+W 玩家（弹浮窗）');
+    appendSystem('字母键 → 自动聚焦输入框（lm/inv 等可正常输入）；ESC 关浮窗或打开设置；浮窗均可拖动 + 缩放');
     setStatus('disconnected', '未连接');
     inp.focus();
 
@@ -1996,9 +2346,17 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     }
     setMinimap(prefs.get('minimap', '1') === '1');
     setCompass(prefs.get('compass', '0') === '1');
-    loadSettingsToForm();   // 表单初值
-    const savedScript = prefs.get('script', '');
-    if (savedScript) runUserScript(savedScript);
+    loadSettingsToForm();
+    loadScripts();         // 多脚本管理：迁移旧的单脚本，加载列表
+    applyAllScripts();     // 启用所有 enabled 脚本
+
+    // 让浮窗都可拖+可缩放（持久化位置/大小）
+    makeDraggable($('minimap'),       $('mm-drag'),       'minimap', true);
+    makeDraggable($('compass'),       $('compass'),       'compass', false);
+    makeDraggable($('modal-popup'),   $('modal-popup').querySelector('.popup-header'), 'popup', true);
+    makeDraggable($('modal-log'),     $('modal-log').querySelector('h2'),              'log',   true);
+    makeDraggable($('modal-script'),  $('modal-script').querySelector('.popup-header'),'script',true);
+    makeDraggable($('modal-settings'),$('modal-settings').querySelector('h2'),         'settings', false);
 
     // Electron 注入了 ws 端口参数时，自动连接
     if (urlAuto) setTimeout(connect, 200);
