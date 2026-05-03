@@ -470,6 +470,73 @@
     }
     .dark .settings-section kbd { background: #2a2a2a; color: #ddd; border-color: #444; }
 
+    /* —— 信息浮窗（背包/状态/地图等按键弹出）—— */
+    .modal.popup-modal {
+      width: min(900px, 92vw);
+      max-height: 85vh;
+      padding: 14px 18px;
+      display: none;
+    }
+    .modal.popup-modal.open { display: flex; flex-direction: column; }
+    .popup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      border-bottom: 1px dashed #ddd;
+    }
+    .dark .popup-header { border-bottom-color: #333; }
+    .popup-title {
+      font-family: Kaiti, "Noto Sans SC", serif;
+      font-size: 14pt;
+      font-weight: 700;
+      color: #D50303;
+    }
+    .dark .popup-title { color: #cc8f1a; }
+    .popup-cmd-tag {
+      font-family: Consolas, monospace;
+      font-size: 9pt;
+      color: #888;
+      padding: 1px 6px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      margin-left: 8px;
+    }
+    .dark .popup-cmd-tag { color: #aaa; border-color: #333; }
+    .popup-actions a {
+      font-family: Kaiti, "Noto Sans SC";
+      color: #888;
+      cursor: pointer;
+      padding: 0 8px;
+      font-weight: 700;
+      font-size: 11pt;
+      text-decoration: none;
+    }
+    .popup-actions a:hover { color: #D50303; }
+    .dark .popup-actions a:hover { color: #cc8f1a; }
+    #popup-content {
+      flex: 1;
+      overflow-y: auto;
+      font-family: "Sarasa Mono SC", NSimSun, SimSun, "新宋体", "宋体",
+                   "Cascadia Mono", Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #151515;
+      white-space: pre-wrap;
+      word-break: keep-all;
+      overflow-wrap: normal;
+      background: rgba(0,0,0,0.025);
+      padding: 10px 12px;
+      border-radius: 3px;
+      min-height: 260px;
+    }
+    .dark #popup-content { background: rgba(255,255,255,0.04); color: #d4d4d4; }
+    #popup-content::-webkit-scrollbar { display: block; width: 8px; }
+    #popup-content::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    .dark #popup-content::-webkit-scrollbar-thumb { background: #444; }
+    .popup-status { padding: 6px 0 0; font-size: 9pt; color: #aaa; text-align: right; }
+
     /* AI 回复气泡 */
     #story .ai-reply {
       display: block;
@@ -742,6 +809,21 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       <a id="script-close" class="muted">【闭】</a>
     </div>
   </div>
+  <div class="modal popup-modal" id="modal-popup">
+    <div class="popup-header">
+      <div>
+        <span class="popup-title" id="popup-title">--</span>
+        <span class="popup-cmd-tag" id="popup-cmd">cmd</span>
+      </div>
+      <div class="popup-actions">
+        <a id="popup-refresh" title="重新执行同一命令">【刷新】</a>
+        <a id="popup-close" title="ESC">【闭】</a>
+      </div>
+    </div>
+    <div id="popup-content"><em style="color:#888">等待数据…</em></div>
+    <div class="popup-status" id="popup-status"></div>
+  </div>
+
   <div class="modal settings-modal" id="modal-settings">
     <h2>设  置</h2>
 
@@ -794,12 +876,14 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     <div class="settings-section">
       <h3>键位说明</h3>
       <div class="hint" style="line-height:1.7">
-        <kbd>B</kbd>背包 · <kbd>L</kbd>查看 · <kbd>M</kbd>地图 · <kbd>W</kbd>玩家
-        · <kbd>S</kbd>能力 · <kbd>H</kbd>血量 · <kbd>X</kbd>出口
-        · <kbd>F</kbd>fullme · <kbd>Q</kbd>任务 · <kbd>I</kbd>背包<br>
-        <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 走路（输入框为空）·
-        <kbd>Alt</kbd>+方向 始终走路 · <kbd>NumPad</kbd> 8 方位+5(look)+ +/-(u/d)<br>
-        <kbd>Esc</kbd> 关闭面板 / 打开本设置 · <kbd>Enter</kbd> 空回车=重复上指
+        <strong>独立浮窗</strong>（按键弹窗 + 主屏照常显示）：
+        <kbd>B</kbd>/<kbd>I</kbd>背包 · <kbd>L</kbd>查看 · <kbd>M</kbd>地图
+        · <kbd>S</kbd>能力 · <kbd>X</kbd>出口 · <kbd>W</kbd>玩家<br>
+        <strong>直发主屏</strong>：<kbd>H</kbd>hp · <kbd>F</kbd>fullme · <kbd>Q</kbd>任务 · <kbd>T</kbd>time<br>
+        <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 走路（输入框空时）·
+        <kbd>Alt</kbd>+方向 始终走路 · <kbd>NumPad</kbd> 8 方位+5(look)+/-（u/d）<br>
+        <kbd>Esc</kbd> 关浮窗 → 关任意 modal → 打开本设置 · <kbd>Enter</kbd> 空回车=重复上指<br>
+        <kbd>/ai 问题</kbd> 调用 AI 助手
       </div>
     </div>
 
@@ -1248,6 +1332,132 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       }).join('\n');
     }
 
+    // —— 独立 ANSI → HTML 渲染（不依赖全局状态，用于浮窗 / 日志预览等）—— //
+    function renderAnsiBlock(text) {
+      text = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      let html = '';
+      const a = { bold: false, fg: null, bg: null, underline: false };
+      const cls = () => {
+        const c = [];
+        if (a.fg !== null) c.push((a.bold ? 'bfg' : 'fg') + a.fg);
+        else if (a.bold) c.push('bold');
+        if (a.bg !== null) c.push('bg' + a.bg);
+        if (a.underline)  c.push('underline');
+        return c;
+      };
+      const wrap = (s) => {
+        if (!s) return '';
+        const e = s.replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
+        const c = cls();
+        return c.length ? `<span class="${c.join(' ')}">${e}</span>` : e;
+      };
+      const re = /\x1b\[([0-9;]*)([a-zA-Z])/g;
+      let last = 0, m;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) html += wrap(text.slice(last, m.index));
+        if (m[2] === 'm') {
+          const codes = m[1].length ? m[1].split(';').map(n => parseInt(n, 10) || 0) : [0];
+          for (const c of codes) {
+            if (c === 0)      { a.bold=false; a.fg=null; a.bg=null; a.underline=false; }
+            else if (c === 1) a.bold = true;
+            else if (c === 4) a.underline = true;
+            else if (c === 22) a.bold = false;
+            else if (c === 24) a.underline = false;
+            else if (c === 39) a.fg = null;
+            else if (c === 49) a.bg = null;
+            else if (c >= 30 && c <= 37) a.fg = c;
+            else if (c >= 40 && c <= 47) a.bg = c;
+            else if (c >= 90 && c <= 97) { a.fg = c - 60; a.bold = true; }
+          }
+        }
+      }
+      if (last < text.length) html += wrap(text.slice(last));
+      return html;
+    }
+
+    // —— 信息浮窗：按 B/I/L/M/S/X/W 等弹出对应命令的回应 —— //
+    const popup = {
+      capturing: false,
+      buffer: '',
+      cmd: '',
+      title: '',
+      timer: null,
+      // PKUXKX prompt 末尾通常是 "\n> "
+      promptRe: /\n>\s*$|^>\s*$|>\s+$/
+    };
+    function openPopup(cmd, title) {
+      // 取消之前的捕获
+      if (popup.timer) { clearTimeout(popup.timer); popup.timer = null; }
+      popup.capturing = true;
+      popup.buffer = '';
+      popup.cmd = cmd;
+      popup.title = title;
+      $('popup-title').textContent = title;
+      $('popup-cmd').textContent = cmd;
+      $('popup-content').innerHTML = '<em style="color:#888">捕获中…</em>';
+      $('popup-status').textContent = '';
+      $('modal-popup').classList.add('open');
+      mask.classList.add('open');
+      // 命令同时回显到主屏并发送（主屏会照常显示回应；浮窗也会捕获一份）
+      appendEcho(cmd);
+      send(cmd);
+      // 超时兜底：800ms 没新数据就 finalize
+      popup.timer = setTimeout(finalizeCapture, 1500);
+    }
+    function captureChunk(text) {
+      if (!popup.capturing) return;
+      popup.buffer += text;
+      // 重置静默超时
+      if (popup.timer) clearTimeout(popup.timer);
+      popup.timer = setTimeout(finalizeCapture, 800);
+      // 提示符 prompt 出现 → 立即 finalize
+      if (popup.promptRe.test(popup.buffer)) finalizeCapture();
+    }
+    function finalizeCapture() {
+      if (!popup.capturing) return;
+      if (popup.timer) { clearTimeout(popup.timer); popup.timer = null; }
+      popup.capturing = false;
+      // 清掉 buffer 末尾的 prompt
+      const cleaned = popup.buffer.replace(/\n?>\s*$/, '');
+      const html = cleaned.trim()
+        ? renderAnsiBlock(cleaned)
+        : '<em style="color:#888">无回复（或服务器尚未给响应）</em>';
+      $('popup-content').innerHTML = html;
+      $('popup-status').textContent = `${popup.buffer.length} 字符 · ${new Date().toLocaleTimeString('zh-CN', {hour12:false})}`;
+    }
+    function closePopup() {
+      $('modal-popup').classList.remove('open');
+      if (popup.timer) { clearTimeout(popup.timer); popup.timer = null; }
+      popup.capturing = false;
+      popup.buffer = '';
+      // 收起遮罩（前提：其它 modal 也都关了）
+      if (!modal.classList.contains('open') && !logPanel.classList.contains('open') &&
+          !$('modal-script').classList.contains('open')) {
+        mask.classList.remove('open');
+      }
+    }
+    function refreshPopup() {
+      if (!popup.cmd) return;
+      openPopup(popup.cmd, popup.title);
+    }
+
+    // —— 按键映射：弹浮窗 vs 直接发到主屏 —— //
+    const POPUP_BINDINGS = {
+      b: { cmd: 'i',     title: '背  包' },
+      i: { cmd: 'i',     title: '背  包' },
+      l: { cmd: 'look',  title: '查  看' },
+      m: { cmd: 'map',   title: '地  图' },
+      s: { cmd: 'score', title: '能力 / 状态' },
+      x: { cmd: 'exits', title: '出  口' },
+      w: { cmd: 'who',   title: '在线玩家' }
+    };
+    const MAIN_BINDINGS = {
+      h: 'hp',
+      f: 'fullme',
+      q: 'quest',
+      t: 'time'
+    };
+
     // —— PKUXKX 全方向集（含 1-3 字符立体组合） —— //
     const DIRECTIONS = new Set([
       'n','s','e','w','ne','nw','se','sw','u','d',
@@ -1378,6 +1588,7 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
     }
     function fireData(text) {
       tryAutoLogin(text);
+      captureChunk(text);
       scriptHooks.data.forEach(cb => { try { cb(text); } catch (e) { console.error('script.data:', e); } });
       const exits = tryParseExitsFromText(text);
       if (exits) { room.exits = exits; updateMinimap(); }
@@ -1642,36 +1853,32 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       // ESC 由全局 document.keydown 统一处理
     });
 
-    // 单字母快捷键（输入框未聚焦时触发）
-    const KEY_BINDINGS = {
-      b: 'i',     i: 'i',     l: 'look',  m: 'map',
-      w: 'who',   s: 'score', h: 'hp',    x: 'exits',
-      f: 'fullme',q: 'quest', t: 'time'
-    };
     function anyModalOpen() {
       return modal.classList.contains('open')
           || logPanel.classList.contains('open')
-          || $('modal-script').classList.contains('open');
+          || $('modal-script').classList.contains('open')
+          || $('modal-popup').classList.contains('open');
     }
 
-    // 全局键盘：Alt+方向 / NumPad 行走 / 单字母快捷键 / ESC
+    // 全局键盘：ESC / Alt+方向 / NumPad / 单字母快捷键
     document.addEventListener('keydown', e => {
-      // ESC：层层关 modal；都没开 → 打开设置
+      // ESC：浮窗 → 设置 → 日志 → 脚本；都没开 → 打开设置
       if (e.key === 'Escape') {
         e.preventDefault();
+        if ($('modal-popup').classList.contains('open'))    return closePopup();
         if (modal.classList.contains('open'))               return closeSettings();
         if (logPanel.classList.contains('open'))            return closeLog();
         if ($('modal-script').classList.contains('open'))   return closeScript();
         return openSettings();
       }
-      // Alt + 方向键 → 始终行走（不管输入框是否聚焦）
+      // Alt + 方向键 → 始终行走
       if (e.altKey && ARROW_DIR[e.key]) {
         e.preventDefault();
         return walk(ARROW_DIR[e.key]);
       }
-      // 输入框聚焦时不再处理快捷键（让用户能正常输入字母）
+      // 输入框聚焦时不接管字母（让正常输入工作）
       if (document.activeElement === inp) return;
-      // 任何 modal 打开时也不处理（避免点击 modal 时按字母触发命令）
+      // modal 打开时也不接管（按字母在 modal 内不应触发命令）
       if (anyModalOpen()) return;
       // NumPad 方位
       if (e.code && e.code.startsWith('Numpad')) {
@@ -1680,14 +1887,20 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
                     Numpad5:'l', NumpadAdd:'u', NumpadSubtract:'d' };
         if (m[e.code]) { e.preventDefault(); return walk(m[e.code]); }
       }
-      // 单字母快捷键（非修饰键）
+      // 单字母（非修饰）
       if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
         const k = e.key.toLowerCase();
-        if (KEY_BINDINGS[k]) {
+        // 浮窗类：发命令并捕获回应到独立浮窗
+        if (POPUP_BINDINGS[k]) {
           e.preventDefault();
-          return walk(KEY_BINDINGS[k]);
+          return openPopup(POPUP_BINDINGS[k].cmd, POPUP_BINDINGS[k].title);
         }
-        // 任何字母 → 把它放进输入框并聚焦（最常见的"开始打字"行为）
+        // 主屏类：直接发命令
+        if (MAIN_BINDINGS[k]) {
+          e.preventDefault();
+          return walk(MAIN_BINDINGS[k]);
+        }
+        // 其它字母/数字：聚焦输入框开始打字
         if (/^[a-z0-9/]$/.test(k)) {
           inp.focus();
           inp.value = e.key;
@@ -1696,6 +1909,10 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
         }
       }
     });
+
+    // 绑定浮窗按钮
+    $('popup-close').addEventListener('click', closePopup);
+    $('popup-refresh').addEventListener('click', refreshPopup);
 
     // 罗盘 + 小地图出口的方向链接：点击 = 走
     function bindDirClicks(rootSel) {
@@ -1762,7 +1979,8 @@ pkx.match(/你的体力\s*[:：]\s*(\d+)/, (m) => {
       appendSystem('北大侠客行 · Web 客户端 已就绪 (mud.pkuxkx.net:8080 / GBK / MXP)');
       appendSystem('需先运行本地桥接：node bridge.js   （默认 ws://localhost:8765 → mud.pkuxkx.net:8080）');
     }
-    appendSystem('【图】= 左侧小地图  【罗】= 方向罗盘  【脚】= JS 脚本  ↑↓←→ = 走路（输入框为空时）');
+    appendSystem('快捷键：B 背包 · L 查看 · M 地图 · S 能力 · X 出口 · W 玩家（弹浮窗）');
+    appendSystem('H hp · F fullme · Q quest · T time（直发主屏）；ESC 关浮窗 / 打开设置');
     setStatus('disconnected', '未连接');
     inp.focus();
 
